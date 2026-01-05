@@ -4,18 +4,18 @@ const router = express.Router();
 const {
   getAllProducts,
   getSingleProduct,
-  getProductVariants,
+  //getProductVariants,
   createProduct,
   createProductVariant,
-} = require("../controllers/productController");
+} = require("../controllers/admin/productController");
 
 // Public
 router.get("/", getAllProducts);
 router.get("/:slug", getSingleProduct);
-router.get("/:productId/variants", getProductVariants);
+//router.get("/:productId/variants", getProductVariants);
 
 // Admin
-router.post("/admin", createProduct);
-router.post("/admin/:productId/variant", createProductVariant);
+router.post("/admin/createProduct", createProduct);
+router.post("/admin/variant/:productId", createProductVariant);
 
 module.exports = router;

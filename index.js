@@ -12,9 +12,10 @@ const corsConfig = require("./middleware/corsConfig");
 // ✅ Helper
 const dbConnection = require("./helpers/dbConnection");
 
+// Admin reg and login
 const authRoutes = require("./routes/authRoutes");
     
-   
+const productRoutes = require("./routes/productRoutes");   
 
 
 const app =express();
@@ -33,6 +34,7 @@ app.use(express.urlencoded({ limit: "5mb", extended: true }));
 app.use("/uploads", express.static("uploads"));
 
 app.use("/admin", securapi, authRoutes);
+app.use("/products", productRoutes);
 
 
 
