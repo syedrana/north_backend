@@ -44,11 +44,10 @@ const productSchema = new mongoose.Schema(
 );
 
 // অটোমেটিক স্লাগ তৈরি
-productSchema.pre("validate", function (next) {
+productSchema.pre("validate", function () {
   if (this.name && !this.slug) {
     this.slug = slugify(this.name, { lower: true, strict: true });
   }
-  next();
 });
 
 // ভার্চুয়াল ফিল্ড: এই প্রোডাক্টের সব ভেরিয়েন্ট একসাথে দেখার জন্য

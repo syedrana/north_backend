@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const multerErrorHandler = require("../middleware/uploadErrorHandler");
+const upload = require("../middleware/upload");
 
 const {
   getAllProducts,
@@ -9,6 +11,7 @@ const {
   createProductVariant,
 } = require("../controllers/admin/productController");
 
+
 // Public
 router.get("/", getAllProducts);
 router.get("/:slug", getSingleProduct);
@@ -16,6 +19,6 @@ router.get("/:slug", getSingleProduct);
 
 // Admin
 router.post("/admin/createProduct", createProduct);
-router.post("/admin/variant/:productId", createProductVariant);
+router.post("/admin/variant/:productId", multerErrorHandler(upload.single("image")), createProductVariant);
 
 module.exports = router;

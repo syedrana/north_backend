@@ -142,10 +142,11 @@
 const Product = require("../../models/product");
 const ProductVariant = require("../../models/productVariant");
 const slugify = require("slugify");
+const uploadToCloudinary = require("../../helpers/uploadToCloudinaryHelper");
 
 // @desc    Get all products with filtering, sorting & pagination
 // @route   GET /api/products
-const getAllProducts = async (req, res) => {
+const getAllProducts = async (req, res, next) => {
   try {
     const { category, search, minPrice, maxPrice, sort, page = 1, limit = 12 } = req.query;
 
@@ -185,7 +186,7 @@ const getAllProducts = async (req, res) => {
       products,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
@@ -217,7 +218,7 @@ const getSingleProduct = async (req, res) => {
 
 // @desc    Create new product (Admin Only)
 // @route   POST /api/products
-const createProduct = async (req, res) => {
+const createProduct = async (req, res, next) => {
   try {
     const { name, description, categoryId, brand, mainImage } = req.body;
 
@@ -245,21 +246,31 @@ const createProduct = async (req, res) => {
 
     res.status(201).json({ success: true, product });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
+    //res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // @desc    Add variants to existing product (Admin Only)
 // @route   POST /api/products/:productId/variants
-const createProductVariant = async (req, res) => {
+const createProductVariant = async (req, res, next) => {
   try {
-    const { sku, size, color, price, discountPrice, stock, images, isDefault } = req.body;
+    const { sku, size, color, price, discountPrice, stock, isDefault } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Variant image is required",
+      });
+    }
 
     // Check if SKU is unique
     const skuExists = await ProductVariant.findOne({ sku });
     if (skuExists) {
       return res.status(400).json({ success: false, message: "SKU must be unique" });
     }
+
+    const imageResult = await uploadToCloudinary(req.file.buffer);
 
     const variant = await ProductVariant.create({
       productId: req.params.productId,
@@ -269,13 +280,18 @@ const createProductVariant = async (req, res) => {
       price,
       discountPrice,
       stock,
-      images,
+      images: [
+        {
+          url: imageResult.secure_url,
+          public_id: imageResult.public_id,
+        },
+      ],
       isDefault,
     });
 
     res.status(201).json({ success: true, variant });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 

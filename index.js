@@ -6,17 +6,14 @@ const securapi = require("./middleware/secureApi");
 const corsConfig = require("./middleware/corsConfig");
 // const checklogin = require("./middlewares/checkLogin.js");
 // const checkadmin = require("./middlewares/checkAdmin.js");
-// const multerErrorHandler = require("./middlewares/uploadErrorHandler");
-// const upload = require("./middlewares/upload");
+
 
 // ✅ Helper
 const dbConnection = require("./helpers/dbConnection");
 
-// Admin reg and login
-const authRoutes = require("./routes/authRoutes");
-    
+const authRoutes = require("./routes/authRoutes");   
 const productRoutes = require("./routes/productRoutes");   
-
+const categoryRoutes = require("./routes/categoryRoutes");
 
 const app =express();
 
@@ -35,7 +32,7 @@ app.use("/uploads", express.static("uploads"));
 
 app.use("/admin", securapi, authRoutes);
 app.use("/products", productRoutes);
-
+app.use("/categorys", categoryRoutes);
 
 
 // ✅ Root Route (for Render test)----------------------------------------------------------
@@ -45,6 +42,16 @@ app.get("/", (req, res) => {
 
 // ✅ Start Server
 const PORT = process.env.PORT || 7000;
+
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+    stack: process.env.NODE_ENV === "development" ? err.stack : null,
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
