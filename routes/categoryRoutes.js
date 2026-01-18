@@ -8,7 +8,7 @@ const {
   getSingleCategory,
   updateCategory,
   deleteCategory,
-} = require("../controllers/admin/categoryController");
+} = require("../controllers/categoryController");
 
 // Admin (protect middleware পরে বসাবে)
 router.post("/create", createCategory);

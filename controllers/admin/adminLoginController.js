@@ -1,6 +1,5 @@
-const Admin = require("../../models/adminModel");
+const Admin = require("../../models/admin");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
 
 let login = async (req, res) => {
    
@@ -15,35 +14,34 @@ let login = async (req, res) => {
             return res.status(400).send("password is required");
         }
 
-        let exitingUser = await Admin.findOne({username:username})
+        const admin = await Admin.findOne({ username }).select("+password"); // ⭐ VERY IMPORTANT
 
-        if (exitingUser){
-            bcrypt.compare(password, exitingUser.password, function(err, result) {
-                if (result){
-
-                    const token = jwt.sign({
-                        username: exitingUser.username,
-                        name: exitingUser.name,
-                        email: exitingUser.email,
-                        userid: exitingUser._id,
-                        role: exitingUser.role,
-                    }, process.env.JWT_SECRET,{
-                        expiresIn: "23h"
-                    });
-
-                    res.status(200).json({
-                        "access_token": token,
-                        "message": "Login Successful",
-                        "role": exitingUser.role,
-                    });
-
-                }else{
-                    return res.status(400).send("Invalid credentials");
-                }
-            });
-        } else {
-            return res.status(400).send("Invalid credentials");
+        if (!admin) {
+        return res.status(400).json({ message: "Invalid credentials" });
         }
+
+        const isMatch = await admin.matchPassword(password);
+
+        if (!isMatch) {
+        return res.status(400).json({ message: "Invalid credentials" });
+        }
+        
+        const token = jwt.sign({
+            username: admin.username,
+            name: admin.name,
+            email: admin.email,
+            userid: admin._id,
+            role: admin.role,
+        }, process.env.JWT_SECRET,{
+            expiresIn: "23h"
+        });
+
+        res.status(200).json({
+            success: true,
+            "access_token": token,
+            "message": "Login Successful",
+            "role": admin.role,
+        });
     } 
     catch (error) {
         return res.status(500).send("Internal server error");

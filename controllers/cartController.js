@@ -1,5 +1,5 @@
-const Cart = require("../models/cartModel");
-const ProductVariant = require("../models/productVariantModel");
+const Cart = require("../models/cart");
+const ProductVariant = require("../models/productVariant");
 
 /**
  * 🛒 Get User Cart

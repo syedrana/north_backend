@@ -1,4 +1,4 @@
-const Category = require("../../models/category");
+const Category = require("../models/category");
 
 exports.createCategory = async (req, res) => {
   try {
@@ -9,6 +9,33 @@ exports.createCategory = async (req, res) => {
         success: false,
         message: "Category name is required",
       });
+    }
+
+    const existing = await Category.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: `Category name '${name}' already exists`,
+      });
+    }
+
+    let parent = null;
+    if (parentId) {
+      parent = await Category.findById(parentId);
+
+      if (!parent || !parent.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: "Parent category does not exist or is inactive",
+        });
+      }
+
+      if (parent.name.trim().toLowerCase() === name.trim().toLowerCase()) {
+        return res.status(400).json({
+          success: false,
+          message: "Category name cannot be same as parent category",
+        });
+      }
     }
 
     const category = await Category.create({
@@ -25,10 +52,21 @@ exports.createCategory = async (req, res) => {
   }
 };
 
+// GET /categorys?search=elec
 exports.getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find({ isActive: true })
-      .sort({ createdAt: 1 });
+    const { search } = req.query;
+
+    const filter = {
+      isActive: true,
+      ...(search && {
+        name: { $regex: search, $options: "i" },
+      }),
+    };
+
+    const categories = await Category.find(filter)
+      .sort({ name: 1 })
+      .limit(20); // 🔥 IMPORTANT: limit for performance
 
     res.json({
       success: true,
@@ -38,6 +76,7 @@ exports.getAllCategories = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 exports.getSingleCategory = async (req, res) => {
   try {

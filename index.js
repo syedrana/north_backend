@@ -2,10 +2,8 @@ require("dotenv").config();
 const express = require("express");
 
 // ✅ Middlewares
-const securapi = require("./middleware/secureApi");
+
 const corsConfig = require("./middleware/corsConfig");
-// const checklogin = require("./middlewares/checkLogin.js");
-// const checkadmin = require("./middlewares/checkAdmin.js");
 
 
 // ✅ Helper
@@ -32,7 +30,7 @@ app.use(express.urlencoded({ limit: "5mb", extended: true }));
 // ✅ Static Files
 app.use("/uploads", express.static("uploads"));
 
-app.use("/admin", securapi, authRoutes);
+app.use("/admin", authRoutes);
 app.use("/products", productRoutes);
 app.use("/categorys", categoryRoutes);
 app.use("/cart", cartRoutes);

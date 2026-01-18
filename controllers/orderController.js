@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
-const Order = require("../../models/orderModel");
-const Cart = require("../../models/cartModel");
-const ProductVariant = require("../../models/productVariant");
+const Order = require("../models/order");
+const Cart = require("../models/cart");
+const ProductVariant = require("../models/productVariant");
 
 exports.createCODOrder = async (req, res) => {
   const session = await mongoose.startSession();
