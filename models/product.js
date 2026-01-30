@@ -35,6 +35,13 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isPublished: {
+      type: Boolean,
+      default: false,
+    },
+    publishedAt: {
+      type: Date,
+    },
   },
   { 
     timestamps: true,

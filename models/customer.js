@@ -41,13 +41,13 @@ const userSchema = new mongoose.Schema(
         type: String,
         required: [true, "Password is required"],
         minlength: [8, "Password must be at least 8 characters long"], // দৈর্ঘ্য বাড়িয়ে ৮ করা হলো
-        validate: {
-            validator: function (value) {
-            // কমপক্ষে ১টি বড় হাতের অক্ষর, ১টি ছোট হাতের অক্ষর, ১টি সংখ্যা এবং ১টি স্পেশাল ক্যারেক্টার চেক করবে
-            return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(value);
-            },
-            message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.",
-        },
+        // validate: {
+        //     validator: function (value) {
+        //     // কমপক্ষে ১টি বড় হাতের অক্ষর, ১টি ছোট হাতের অক্ষর, ১টি সংখ্যা এবং ১টি স্পেশাল ক্যারেক্টার চেক করবে
+        //     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(value);
+        //     },
+        //     message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.",
+        // },
         select: false,
     },
     role: {
@@ -60,7 +60,7 @@ const userSchema = new mongoose.Schema(
     },
     isVerified: {
         type: Boolean,
-        default: false,
+        default: true,
     },
     isBlocked: {
         type: Boolean,
@@ -75,12 +75,11 @@ const userSchema = new mongoose.Schema(
 // --- এডভান্সড ভ্যালিডেশন (Middleware) ---
 
 // ১. পাসওয়ার্ড সেভ করার আগে হ্যাশ করা
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
   
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
 // ২. পাসওয়ার্ড চেক করার জন্য একটি মেথড তৈরি
@@ -88,4 +87,4 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model("Customer", userSchema);

@@ -1,5 +1,8 @@
 require("dotenv").config();
 const express = require("express");
+const cookieParser = require("cookie-parser");
+const cors = require("cors");
+
 
 // ✅ Middlewares
 
@@ -14,6 +17,9 @@ const productRoutes = require("./routes/productRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const customerRoutes = require("./routes/customerRoutes");
+const checkoutRoutes = require("./routes/checkoutRoutes");
+const addressRoutes = require("./routes/addressRoutes");
 
 const app =express();
 
@@ -22,6 +28,7 @@ dbConnection();
 
 // ✅ CORS Middleware
 app.use(corsConfig);
+app.use(cookieParser());
 
 // ✅ Middlewares
 app.use(express.json({ limit: "5mb" }));
@@ -35,6 +42,9 @@ app.use("/products", productRoutes);
 app.use("/categorys", categoryRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
+app.use("/customer", customerRoutes);
+app.use("/checkout", checkoutRoutes);
+app.use("/address", addressRoutes);
 
 
 // ✅ Root Route (for Render test)----------------------------------------------------------
@@ -53,6 +63,14 @@ app.use((err, req, res, next) => {
     stack: process.env.NODE_ENV === "development" ? err.stack : null,
   });
 });
+
+app.use(
+  cors({
+    origin: "http://localhost:3000", // frontend URL
+    credentials: true,
+  })
+);
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);

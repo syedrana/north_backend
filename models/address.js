@@ -19,7 +19,6 @@ const addressSchema = new mongoose.Schema(
       required: [true, "Contact phone number is required"],
       validate: {
         validator: function (v) {
-          // বাংলাদেশি ফোন নম্বর ভ্যালিডেশন
           return /^01[3-9]\d{8}$/.test(v);
         },
         message: (props) => `${props.value} is not a valid Bangladeshi phone number!`,
@@ -44,6 +43,7 @@ const addressSchema = new mongoose.Schema(
       type: String,
       required: [true, "Detailed address line is required"],
       trim: true,
+      minlength: 10,
     },
     addressType: {
       type: String,
@@ -57,22 +57,5 @@ const addressSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// --- এডভান্সড লজিক (Middleware) ---
-
-// ১. নতুন ডিফল্ট অ্যাড্রেস সেট করলে পুরনোটি অটোমেটিক ফলস করা (Optional Logic for Controller)
-// যদিও এটি কন্ট্রোলারে হ্যান্ডেল করা ভালো, তবে আমরা নিশ্চিত করবো ডাটাবেস লেভেলে স্বচ্ছতা।
-
-addressSchema.pre("save", async function (next) {
-  // যদি এই অ্যাড্রেসটি ডিফল্ট হিসেবে সেট করা হয়
-  if (this.isDefault) {
-    // ইউজারের অন্য সব অ্যাড্রেস থেকে isDefault সরিয়ে দেওয়া
-    await this.constructor.updateMany(
-      { userId: this.userId, _id: { $ne: this._id } },
-      { $set: { isDefault: false } }
-    );
-  }
-  next();
-});
 
 module.exports = mongoose.model("Address", addressSchema);

@@ -8,6 +8,11 @@ const cartSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    status: {
+      type: String,
+      enum: ["active", "converted"],
+      default: "active",
+    },
     items: [
       {
         productId: {
@@ -26,6 +31,14 @@ const cartSchema = new mongoose.Schema(
           min: 1,
         },
         price: {
+          type: Number,
+          required: true,
+        },
+        originalPrice: {
+          type: Number,
+          required: true,
+        },
+        discount: {
           type: Number,
           required: true,
         },
