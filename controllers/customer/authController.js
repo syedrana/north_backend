@@ -27,9 +27,9 @@ const logoutUser = async (req, res, next) => {
   try {
     res.cookie("token", "", {
       httpOnly: true,
+      secure: true,
+      sameSite: "none",
       expires: new Date(0),
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
     });
 
     res.json({ success: true, message: "Logged out successfully" });

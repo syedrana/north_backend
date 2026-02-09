@@ -209,12 +209,10 @@ const loginUser = async (req, res) => {
     /* ================= TOKEN ================= */
     const token = generateToken(user);
 
-    const isProd = process.env.NODE_ENV === "production";
-
     res.cookie("token", token, {
       httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "none" : "lax",
+      secure: true,          // 🔥 must true for cross-site
+      sameSite: "none",      // 🔥 must none for cross-domain
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 

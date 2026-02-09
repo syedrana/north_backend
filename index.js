@@ -26,8 +26,8 @@ const app =express();
 dbConnection();
 
 // ✅ CORS Middleware
-app.use(corsConfig);
 app.use(cookieParser());
+app.use(corsConfig);
 
 // ✅ Middlewares
 app.use(express.json({ limit: "5mb" }));
