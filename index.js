@@ -75,6 +75,13 @@ app.use(
   })
 );
 
+app.use(cors({
+  origin: ['https://northsquad.vercel.app', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
