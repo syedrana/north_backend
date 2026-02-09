@@ -5,6 +5,7 @@ const ProductVariant = require("../models/productVariant");
    🛒 GET USER CART
 ===================================================== */
 const getCart = async (req, res) => {
+  res.set("Cache-Control", "no-store");
   try {
     if (!req.user) {
       return res.status(401).json({
