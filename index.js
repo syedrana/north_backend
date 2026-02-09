@@ -1,11 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const cookieParser = require("cookie-parser");
-const cors = require("cors");
-
 
 // ✅ Middlewares
-
 const corsConfig = require("./middleware/corsConfig");
 
 
@@ -29,7 +26,7 @@ const app =express();
 dbConnection();
 
 // ✅ CORS Middleware
-// app.use(corsConfig);
+app.use(corsConfig);
 app.use(cookieParser());
 
 // ✅ Middlewares
@@ -67,14 +64,6 @@ app.use((err, req, res, next) => {
     stack: process.env.NODE_ENV === "development" ? err.stack : null,
   });
 });
-
-app.use(cors({
-  origin: ['https://northsquad.vercel.app', 'http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
