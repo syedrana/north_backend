@@ -68,13 +68,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.use(
-  cors({
-    origin: "http://localhost:3000", // frontend URL
-    credentials: true,
-  })
-);
-
 app.use(cors({
   origin: ['https://northsquad.vercel.app', 'http://localhost:3000'],
   credentials: true,
