@@ -1,6 +1,14 @@
 const mongoose = require("mongoose");
 const slugify = require("slugify");
 
+const sizeChartRowSchema = new mongoose.Schema({
+  size: String,
+  chest: String,
+  waist: String,
+  length: String,
+  shoulder: String,
+}, { _id: false });
+
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -25,19 +33,33 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
       required: [true, "Category ID is required"],
+      index: true,
     },
     brand: {
       type: String,
       trim: true,
       default: "No Brand",
     },
+    attributes: {
+      fabric: { type: String, trim: true },
+      fit: { type: String, trim: true },
+      gender: { type: String, trim: true },
+    },
+    sizeChart: [sizeChartRowSchema],
+    tags: [{
+      type: String,
+      lowercase: true,
+      trim: true
+    }],
     isActive: {
       type: Boolean,
       default: true,
+      index: true
     },
     isPublished: {
       type: Boolean,
       default: false,
+      index: true
     },
     publishedAt: {
       type: Date,
@@ -50,14 +72,39 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-// অটোমেটিক স্লাগ তৈরি
-productSchema.pre("validate", function () {
-  if (this.name && !this.slug) {
-    this.slug = slugify(this.name, { lower: true, strict: true });
+productSchema.index({
+  name: "text",
+  description: "text",
+  brand: "text",
+  tags: "text"
+});
+
+
+productSchema.pre("validate", async function () {
+  if (!this.name) return;
+
+  if (!this.slug) {
+    const base = slugify(this.name, { lower: true, strict: true });
+    let slug = base;
+    let counter = 1;
+
+    const Product = mongoose.models.Product || mongoose.model("Product");
+
+
+    while (await Product.exists({ slug })) {
+      slug = `${base}-${counter++}`;
+    }
+
+    this.slug = slug;
   }
 });
 
-// ভার্চুয়াল ফিল্ড: এই প্রোডাক্টের সব ভেরিয়েন্ট একসাথে দেখার জন্য
+productSchema.pre("save", async function () {
+  if (this.isPublished && !this.publishedAt) {
+    this.publishedAt = new Date();
+  }
+});
+
 productSchema.virtual("variants", {
   ref: "ProductVariant",
   localField: "_id",

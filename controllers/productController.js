@@ -1,8 +1,8 @@
 const Product = require("../models/product");
 const ProductVariant = require("../models/productVariant");
 const slugify = require("slugify");
-const uploadToCloudinary = require("../helpers/uploadToCloudinaryHelper");
-const cloudinary = require("../config/cloudinary");
+// const uploadToCloudinary = require("../helpers/uploadToCloudinaryHelper");
+// const cloudinary = require("../config/cloudinary");
 
 
 // @desc    Get all products with filtering, sorting & pagination
@@ -468,154 +468,7 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
-const createProductVariant = async (req, res, next) => {
-  try {
-    const { sku, size, color, price, discountPrice, stock, isDefault } = req.body;
 
-    const skuExists = await ProductVariant.findOne({ sku });
-    if (skuExists) {
-      return res.status(400).json({ success: false, message: "SKU must be unique" });
-    }
-
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one image is required",
-      });
-    }
-
-    const uploadedImages = [];
-
-    for (const file of req.files) {
-      const result = await uploadToCloudinary(file.buffer);
-      uploadedImages.push({
-        url: result.secure_url,
-        public_id: result.public_id,
-      });
-    }
-
-    const variant = await ProductVariant.create({
-      productId: req.params.productId,
-      sku,
-      size,
-      color,
-      price,
-      discountPrice,
-      stock,
-      images: uploadedImages,
-      isDefault,
-    });
-
-    res.status(201).json({ success: true, variant });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const updateVariant = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const variant = await ProductVariant.findById(id);
-    if (!variant) {
-      return res.status(404).json({ success: false, message: "Variant not found" });
-    }
-
-    const {
-      sku,
-      size,
-      color,
-      price,
-      discountPrice,
-      stock,
-      images,
-      isDefault,
-      keepImages,
-      removeImages,
-    } = req.body;
-
-    if (sku) variant.sku = sku;
-    if (size) variant.size = size;
-    if (color) variant.color = color;
-    if (price !== undefined) variant.price = price;
-    if (discountPrice !== undefined) variant.discountPrice = discountPrice;
-    if (stock !== undefined) variant.stock = stock;
-    if (images) variant.images = images;
-    if (typeof isDefault === "boolean") variant.isDefault = isDefault;
-
-      /* ---------------- IMAGE HANDLING ---------------- */
-
-    // images to keep (existing)
-    let finalImages = [];
-
-    if (keepImages) {
-      const keepIds = JSON.parse(keepImages);
-      finalImages = variant.images.filter((img) =>
-        keepIds.includes(img.public_id)
-      );
-    }
-
-    // delete removed images from cloudinary
-    if (removeImages) {
-      const removed = JSON.parse(removeImages);
-      for (const publicId of removed) {
-        await cloudinary.uploader.destroy(publicId);
-      }
-    }
-
-    // new uploaded images
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const result = await uploadToCloudinary(file.buffer);
-
-        finalImages.push({
-          url: result.secure_url,
-          public_id: result.public_id,
-        });
-      }
-    }
-
-
-    if (finalImages.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one image is required",
-      });
-    }
-
-    variant.images = finalImages;
-
-    await variant.save();
-
-    res.json({
-      success: true,
-      message: "Variant updated successfully",
-      variant,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const deleteVariant = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const variant = await ProductVariant.findById(id);
-    if (!variant) {
-      return res.status(404).json({ success: false, message: "Variant not found" });
-    }
-
-    await variant.deleteOne();
-
-    res.json({
-      success: true,
-      message: "Variant deleted successfully",
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
 
 
 const togglePublishProduct = async (req, res) => {
@@ -696,10 +549,7 @@ module.exports = {
   getAdminProducts,
   createProduct, 
   updateProduct, 
-  deleteProduct, 
-  createProductVariant,
-  updateVariant,
-  deleteVariant,
+  deleteProduct,
   getAdminProductWithVariants,
   togglePublishProduct,
  };

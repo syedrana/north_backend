@@ -172,6 +172,8 @@
 const Cart = require("../models/cart");
 const ProductVariant = require("../models/productVariant");
 const Checkout = require("../models/checkout");
+const calculateShipping = require("../utils/calculateShipping");
+const Address = require("../models/address");
 
 /**
  * GET /checkout
@@ -243,8 +245,17 @@ exports.createCheckoutFromCart = async (req, res) => {
     });
   }
 
-  const shipping = subtotal >= 3000 ? 0 : 100;
+  // const shipping = subtotal >= 3000 ? 0 : 100;
+  const address = await Address.findById(userId);
 
+  const shipping = await calculateShipping({
+    subtotal: subtotal,
+    address,
+    paymentMethod: "COD",
+  });
+
+  console.log("subtotal :", subtotal);
+console.log("shipping :", shipping);
   const checkout = await Checkout.create({
     userId,
     source: "cart",
@@ -265,9 +276,32 @@ exports.createCheckoutFromCart = async (req, res) => {
  * PATCH /checkout/:id
  * 👉 update address only
  */
+// exports.updateCheckout = async (req, res) => {
+//   const { id } = req.params;
+//   const { shippingAddressId } = req.body;
+
+//   const checkout = await Checkout.findOne({
+//     _id: id,
+//     userId: req.user._id,
+//     status: "draft",
+//   });
+
+//   if (!checkout) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Checkout not found",
+//     });
+//   }
+
+//   checkout.shippingAddressId = shippingAddressId;
+//   await checkout.save();
+
+//   res.json({ success: true, checkout });
+// };
+
 exports.updateCheckout = async (req, res) => {
   const { id } = req.params;
-  const { shippingAddressId } = req.body;
+  const { shippingAddressId, paymentMethod } = req.body;
 
   const checkout = await Checkout.findOne({
     _id: id,
@@ -282,7 +316,28 @@ exports.updateCheckout = async (req, res) => {
     });
   }
 
-  checkout.shippingAddressId = shippingAddressId;
+  if (shippingAddressId) {
+    checkout.shippingAddressId = shippingAddressId;
+
+    const address = await Address.findById(shippingAddressId);
+
+    const shipping = await calculateShipping({
+      subtotal: checkout.pricing.subtotal,
+      address,
+      paymentMethod: paymentMethod || "COD",
+    });
+
+    checkout.pricing.shipping = shipping;
+    checkout.pricing.payable =
+      checkout.pricing.subtotal +
+      shipping -
+      checkout.pricing.discount;
+  }
+
+  if (paymentMethod) {
+    checkout.paymentMethod = paymentMethod;
+  }
+
   await checkout.save();
 
   res.json({ success: true, checkout });

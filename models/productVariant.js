@@ -6,6 +6,7 @@ const productVariantSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
       required: [true, "Main Product ID is required"],
+      index: true,
     },
     sku: {
       type: String,
@@ -17,15 +18,14 @@ const productVariantSchema = new mongoose.Schema(
     size: {
       type: String,
       required: [true, "Size is required"],
-      enum: {
-        values: ["XS", "S", "M", "L", "XL", "XXL", "FREE"],
-        message: "{VALUE} is not a valid size",
-      },
+      uppercase: true,
+      trim: true,
     },
     color: {
       type: String,
       required: [true, "Color is required"],
       trim: true,
+      lowercase: true,
     },
     price: {
       type: Number,
@@ -34,10 +34,10 @@ const productVariantSchema = new mongoose.Schema(
     },
     discountPrice: {
       type: Number,
-      default: 0,
+      default: null,
       validate: {
-        // ডিসকাউন্ট প্রাইস চেক
         validator: function (value) {
+          if (value === null || value === undefined) return true;
           return value < this.price;
         },
         message: "Discount price ({VALUE}) must be less than regular price",
@@ -68,20 +68,97 @@ const productVariantSchema = new mongoose.Schema(
       ],
       validate: {
         validator: function (v) {
-          return v.length >= 1 && v.length <= 5; // কমপক্ষে ১টি এবং সর্বোচ্চ ৫টি ছবি
+          return Array.isArray(v) && v.length >= 1 && v.length <= 5;
         },
         message: "You must upload between 1 to 5 images per variant",
+      },
+    },
+    shipping: {
+      weightGram: {
+        type: Number,
+        default: 300,
+        min: [0, "Weight cannot be negative"],
+      },
+      extraShippingFee: {
+        type: Number,
+        default: 0,
+        min: [0, "Extra shipping fee cannot be negative"],
+      },
+      bulky: {
+        type: Boolean,
+        default: false,
       },
     },
     isDefault: {
       type: Boolean,
       default: false,
     },
+    isActive: { 
+      type: Boolean, 
+      default: true, 
+      index: true 
+    },
+    
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
+
 );
 
-// ইনডেক্সিং (দ্রুত সার্চের জন্য)
-productVariantSchema.index({ productId: 1, sku: 1 });
+/* ---------- INDEXES ---------- */
+
+productVariantSchema.index(
+  { productId: 1, isDefault: 1 },
+  { unique: true, partialFilterExpression: { isDefault: true } }
+);
+productVariantSchema.index(
+  { productId: 1, size: 1, color: 1 },
+  { unique: true }
+);
+productVariantSchema.index({
+  productId: 1,
+  isActive: 1,
+  stock: 1
+});
+
+
+/* ---------- VIRTUALS ---------- */
+
+productVariantSchema.virtual("effectivePrice").get(function() {
+  return this.discountPrice || this.price;
+});
+
+productVariantSchema.virtual("discountPercent").get(function() {
+  if (!this.discountPrice) return 0;
+  return Math.round((1 - this.discountPrice / this.price) * 100);
+});
+
+productVariantSchema.virtual("inStock").get(function() {
+  return this.stock > 0;
+});
+
+productVariantSchema.virtual("availableStock").get(function() {
+  return Math.max(0, this.stock - this.reservedStock);
+});
+
+
+
+
+/* ---------- DEFAULT VARIANT ENFORCE ---------- */
+
+productVariantSchema.pre("save", async function () {
+  if (this.isDefault) {
+    await mongoose.models.ProductVariant.updateMany(
+      { productId: this.productId, _id: { $ne: this._id } },
+      { isDefault: false }
+    );
+  }
+});
+
+
+
 
 module.exports = mongoose.model("ProductVariant", productVariantSchema);

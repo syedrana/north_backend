@@ -13,13 +13,15 @@ const corsConfig = require("./middleware/corsConfig");
 const dbConnection = require("./helpers/dbConnection");
 
 const authRoutes = require("./routes/authRoutes");   
-const productRoutes = require("./routes/productRoutes");   
+const productRoutes = require("./routes/productRoutes");  
+const productVariantRoutes = require("./routes/productVariantRoutes");  
 const categoryRoutes = require("./routes/categoryRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const checkoutRoutes = require("./routes/checkoutRoutes");
 const addressRoutes = require("./routes/addressRoutes");
+const deliveryRoutes = require("./routes/deliveryRoutes")
 
 const app =express();
 
@@ -27,7 +29,7 @@ const app =express();
 dbConnection();
 
 // ✅ CORS Middleware
-app.use(corsConfig);
+// app.use(corsConfig);
 app.use(cookieParser());
 
 // ✅ Middlewares
@@ -39,12 +41,14 @@ app.use("/uploads", express.static("uploads"));
 
 app.use("/admin", authRoutes);
 app.use("/products", productRoutes);
+app.use("/productsvariant", productVariantRoutes);
 app.use("/categorys", categoryRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
 app.use("/customer", customerRoutes);
 app.use("/checkout", checkoutRoutes);
 app.use("/address", addressRoutes);
+app.use("/deliverysetting", deliveryRoutes);
 
 
 // ✅ Root Route (for Render test)----------------------------------------------------------
