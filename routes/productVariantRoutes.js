@@ -13,7 +13,7 @@ const {
 
 
 router.post("/admin/variant/:productId", checkadmin, checkRole("admin"), multerErrorHandler(upload.array("images", 5)), createProductVariant);
-router.put("/admin/updatevariant/:id", checkadmin, checkRole("admin"), multerErrorHandler(upload.array("newImages", 5)), updateVariant);
+router.put("/admin/updatevariant/:id", checkadmin, checkRole("admin"), multerErrorHandler(upload.array("images", 5)), updateVariant);
 router.delete("/admin/deletevariant/:id", checkadmin, checkRole("admin"), deleteVariant);
 
 

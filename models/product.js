@@ -40,12 +40,24 @@ const productSchema = new mongoose.Schema(
       trim: true,
       default: "No Brand",
     },
+    // attributes: {
+    //   fabric: { type: String, trim: true },
+    //   fit: { type: String, trim: true },
+    //   gender: { type: String, trim: true },
+    // },
     attributes: {
-      fabric: { type: String, trim: true },
-      fit: { type: String, trim: true },
-      gender: { type: String, trim: true },
+      type: Map,
+      of: String,
+      default: {},
     },
     sizeChart: [sizeChartRowSchema],
+    sizeOptions: [
+      {
+        type: String,
+        trim: true,
+        uppercase: true,
+      },
+    ],
     tags: [{
       type: String,
       lowercase: true,

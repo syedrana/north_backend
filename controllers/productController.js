@@ -384,61 +384,167 @@ const getAdminProducts = async (req, res, next) => {
 };
 
 
-const createProduct = async (req, res, next) => {
+// const createProduct = async (req, res, next) => {
+//   try {
+//     const { name, description, categoryId, brand, mainImage } = req.body;
+
+//     if (!name || !categoryId) {
+//       return res.status(400).json({ success: false, message: "Name and Category are required" });
+//     }
+
+//     const slug = slugify(name, { lower: true, strict: true });
+
+//     const exists = await Product.findOne({ slug });
+//     if (exists) {
+//       return res.status(409).json({ success: false, message: "Product name/slug already exists" });
+//     }
+
+//     const product = await Product.create({
+//       name,
+//       slug,
+//       description,
+//       categoryId,
+//       brand,
+//       mainImage
+//     });
+
+//     res.status(201).json({ success: true, product });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// const updateProduct = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+//     const { name, description, categoryId, brand, isActive } = req.body;
+
+//     const product = await Product.findById(id);
+//     if (!product) {
+//       return res.status(404).json({ success: false, message: "Product not found" });
+//     }
+
+//     if (name) {
+//       product.name = name;
+//       product.slug = slugify(name, { lower: true, strict: true });
+//     }
+
+//     if (description) product.description = description;
+//     if (categoryId) product.categoryId = categoryId;
+//     if (brand) product.brand = brand;
+//     if (typeof isActive === "boolean") product.isActive = isActive;
+
+//     await product.save();
+
+//     res.json({
+//       success: true,
+//       message: "Product updated successfully",
+//       product,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// const deleteProduct = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     const product = await Product.findById(id);
+//     if (!product) {
+//       return res.status(404).json({ success: false, message: "Product not found" });
+//     }
+
+//     await ProductVariant.deleteMany({ productId: id });
+
+//     await product.deleteOne();
+
+//     res.json({
+//       success: true,
+//       message: "Product & all variants deleted successfully",
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+/* =====================================================
+   HELPERS
+===================================================== */
+
+const parseJSON = (v, fallback) => {
   try {
-    const { name, description, categoryId, brand, mainImage } = req.body;
-
-    if (!name || !categoryId) {
-      return res.status(400).json({ success: false, message: "Name and Category are required" });
-    }
-
-    const slug = slugify(name, { lower: true, strict: true });
-
-    const exists = await Product.findOne({ slug });
-    if (exists) {
-      return res.status(409).json({ success: false, message: "Product name/slug already exists" });
-    }
-
-    const product = await Product.create({
-      name,
-      slug,
-      description,
-      categoryId,
-      brand,
-      mainImage
-    });
-
-    res.status(201).json({ success: true, product });
-  } catch (error) {
-    next(error);
+    if (!v) return fallback;
+    if (typeof v === "object") return v;
+    return JSON.parse(v);
+  } catch {
+    return fallback;
   }
 };
 
-const updateProduct = async (req, res, next) => {
+const parseBool = (v, def = false) => {
+  if (v === undefined) return def;
+  return v === true || v === "true";
+};
+
+const normalizeStringArray = (arr = []) =>
+  arr
+    .map((s) => s.toString().trim())
+    .filter(Boolean);
+
+/* =====================================================
+   CREATE PRODUCT — production safe
+===================================================== */
+
+const createProduct = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { name, description, categoryId, brand, isActive } = req.body;
+    let {
+      name,
+      description,
+      categoryId,
+      brand,
+      attributes,
+      sizeChart,
+      tags,
+      sizeOptions,
+      isActive,
+      isPublished,
+    } = req.body;
 
-    const product = await Product.findById(id);
-    if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+    if (!name || !description || !categoryId) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, description, categoryId required",
+      });
     }
 
-    if (name) {
-      product.name = name;
-      product.slug = slugify(name, { lower: true, strict: true });
-    }
+    /* -------- normalize complex fields -------- */
 
-    if (description) product.description = description;
-    if (categoryId) product.categoryId = categoryId;
-    if (brand) product.brand = brand;
-    if (typeof isActive === "boolean") product.isActive = isActive;
+    attributes = parseJSON(attributes, {});
+    sizeChart = parseJSON(sizeChart, []);
+    tags = normalizeStringArray(parseJSON(tags, []));
+    sizeOptions = normalizeStringArray(parseJSON(sizeOptions, [])).map(s =>
+      s.toUpperCase()
+    );
 
-    await product.save();
+    /* -------- slug handled by schema hook -------- */
 
-    res.json({
+    const product = await Product.create({
+      name: name.trim(),
+      description: description.trim(),
+      categoryId,
+      brand: brand?.trim(),
+      attributes,
+      sizeChart,
+      tags,
+      sizeOptions,
+      isActive: parseBool(isActive, true),
+      isPublished: parseBool(isPublished, false),
+    });
+
+    res.status(201).json({
       success: true,
-      message: "Product updated successfully",
       product,
     });
   } catch (error) {
@@ -446,27 +552,152 @@ const updateProduct = async (req, res, next) => {
   }
 };
 
-const deleteProduct = async (req, res, next) => {
+/* =====================================================
+   UPDATE PRODUCT — schema aligned
+===================================================== */
+
+const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
 
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
     }
 
-    await ProductVariant.deleteMany({ productId: id });
+    let {
+      name,
+      description,
+      categoryId,
+      brand,
+      attributes,
+      sizeChart,
+      tags,
+      sizeOptions,
+      isActive,
+      isPublished,
+    } = req.body;
 
-    await product.deleteOne();
+    /* -------- fields -------- */
+
+    if (name) {
+      product.name = name.trim();
+
+      // force new slug → pre-validate hook ensures uniqueness
+      product.slug = undefined;
+    }
+
+    if (description)
+      product.description = description.trim();
+
+    if (categoryId)
+      product.categoryId = categoryId;
+
+    if (brand !== undefined)
+      product.brand = brand.trim();
+
+    /* -------- attributes -------- */
+
+    if (attributes !== undefined) {
+      product.attributes = parseJSON(attributes, {});
+    }
+
+    /* -------- size chart -------- */
+
+    if (sizeChart !== undefined) {
+      product.sizeChart = parseJSON(sizeChart, []);
+    }
+
+    /* -------- tags -------- */
+
+    if (tags !== undefined) {
+      product.tags = normalizeStringArray(
+        parseJSON(tags, [])
+      );
+    }
+
+    /* -------- sizeOptions (Hybrid size system) -------- */
+
+    if (sizeOptions !== undefined) {
+      product.sizeOptions = normalizeStringArray(
+        parseJSON(sizeOptions, [])
+      ).map(s => s.toUpperCase());
+    }
+
+    /* -------- flags -------- */
+
+    if (isActive !== undefined) {
+      product.isActive = parseBool(isActive);
+    }
+
+    if (isPublished !== undefined) {
+      product.isPublished = parseBool(isPublished);
+    }
+
+    await product.save();
 
     res.json({
       success: true,
-      message: "Product & all variants deleted successfully",
+      message: "Product updated",
+      product,
     });
   } catch (error) {
     next(error);
   }
 };
+
+/* =====================================================
+   DELETE PRODUCT — cascade safe
+===================================================== */
+
+const deleteProduct = async (req, res, next) => {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const { id } = req.params;
+
+    const product = await Product.findById(id).session(
+      session
+    );
+
+    if (!product) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    /* ---- delete variants ---- */
+
+    await ProductVariant.deleteMany(
+      { productId: id },
+      { session }
+    );
+
+    await product.deleteOne({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({
+      success: true,
+      message:
+        "Product and all variants deleted successfully",
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
+  }
+};
+
+
 
 
 
