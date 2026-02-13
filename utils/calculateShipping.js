@@ -1,237 +1,134 @@
-// const DeliverySetting = require("../models/DeliverySetting");
-
-// module.exports = async function calculateShipping({
-//   subtotal,
-//   address,
-//   paymentMethod = "COD",
-// }) {
-//   const setting = await DeliverySetting.findOne({ isActive: true });
-
-//   if (!setting) return 0;
-
-//   if (subtotal >= setting.freeAbove) return 0;
-
-//   let shipping =
-//     address?.city === setting.insideCityName
-//       ? setting.insideCityFee
-//       : setting.outsideCityFee;
-
-//   if (paymentMethod === "COD") {
-//     shipping += setting.codExtraFee;
-//   }
-
-//   return shipping;
-// };
-
-
-
-
-
-
-// const DeliverySetting = require("../models/DeliverySetting");
-
-// module.exports = async function calculateShipping({
-//   items,
-//   subtotal,
-//   address,
-//   paymentMethod = "COD",
-// }) {
-//   const setting = await DeliverySetting.findOne({ isActive: true });
-
-//   if (!setting) return { total: 0, breakdown: {} };
-
-//   // ✅ free delivery check
-//   if (subtotal >= setting.freeAbove) {
-//     return {
-//       total: 0,
-//       breakdown: {
-//         base: 0,
-//         weightExtra: 0,
-//         itemExtra: 0,
-//         codExtra: 0,
-//         free: true,
-//       },
-//     };
-//   }
-
-//   const inside = address?.city === setting.insideCityName;
-
-//   let base = inside
-//     ? setting.insideCityFee
-//     : setting.outsideCityFee;
-
-//   // ✅ total weight
-//   let totalWeight = 0;
-//   let itemExtra = 0;
-
-//   for (const item of items) {
-//     const v = item.variantSnapshot;
-
-//     const weight = v?.shipping?.weightGram || 300;
-//     const extra = v?.shipping?.extraShippingFee || 0;
-
-//     totalWeight += weight * item.quantity;
-//     itemExtra += extra * item.quantity;
-//   }
-
-//   // ✅ slab extra
-//   let slabExtra = 0;
-
-//   const slab = setting.weightSlabs
-//     .sort((a, b) => a.uptoGram - b.uptoGram)
-//     .find(s => totalWeight <= s.uptoGram);
-
-//   if (slab) {
-//     slabExtra = inside ? slab.insideExtra : slab.outsideExtra;
-//   }
-
-//   // ✅ COD extra
-//   let codExtra = paymentMethod === "COD"
-//     ? setting.codExtraFee
-//     : 0;
-
-//   const total = base + slabExtra + itemExtra + codExtra;
-
-//   return {
-//     total,
-//     breakdown: {
-//       base,
-//       weightExtra: slabExtra,
-//       itemExtra,
-//       codExtra,
-//       totalWeight,
-//     },
-//   };
-// };
-
-
-
-
-
-
-
-
 const DeliverySetting = require("../models/DeliverySetting");
 
 module.exports = async function calculateShipping({
   items = [],
   subtotal = 0,
   address = {},
-  paymentMethod = "COD",
 }) {
-  const setting = await DeliverySetting.findOne({ isActive: true }).lean();
+
+  const setting = await DeliverySetting
+    .findOne({ isActive: true })
+    .lean();
 
   if (!setting) {
     return { total: 0, breakdown: { reason: "no-setting" } };
   }
 
-  // =========================
-  // ✅ Normalize numbers
-  // =========================
-  const insideCityFee = Math.max(0, Number(setting.insideCityFee) || 0);
-  const outsideCityFee = Math.max(0, Number(setting.outsideCityFee) || 0);
-  const freeAbove = Math.max(0, Number(setting.freeAbove) || 0);
-  const codExtraFee = Math.max(0, Number(setting.codExtraFee) || 0);
-
-  // =========================
-  // ✅ Free delivery
-  // =========================
-  if (freeAbove > 0 && subtotal >= freeAbove) {
-    return {
-      total: 0,
-      breakdown: {
-        base: 0,
-        weightExtra: 0,
-        itemExtra: 0,
-        codExtra: 0,
-        free: true,
-      },
-    };
+  if (!address?.district) {
+    return { total: 0, breakdown: { reason: "no-address" } };
   }
 
-  // =========================
-  // ✅ City match safe compare
-  // =========================
-  const city = (address.city || "").toLowerCase().trim();
-  const insideCityName = (setting.insideCityName || "")
+  /* ---------- inside/outside ---------- */
+
+  const district = address.district.toLowerCase().trim();
+  const insideName = (setting.insideCityName || "")
     .toLowerCase()
     .trim();
 
-  const inside = city && city === insideCityName;
+  const inside = district === insideName;
 
-  // =========================
-  // ✅ Base fee
-  // =========================
-  const base = inside ? insideCityFee : outsideCityFee;
+  const base = inside
+    ? Number(setting.insideCityFee) || 0
+    : Number(setting.outsideCityFee) || 0;
 
-  // =========================
-  // ✅ Weight + per-item extra
-  // =========================
+  const freeAbove = Number(setting.freeAbove) || 0;
+
+  if (freeAbove > 0 && subtotal >= freeAbove) {
+    return {
+      total: 0,
+      breakdown: { free: true }
+    };
+  }
+
+  /* ---------- item loop ---------- */
+
   let totalWeight = 0;
   let itemExtra = 0;
+  let bulkyExtra = 0;
 
   for (const item of items) {
-    const v = item.variantSnapshot || {};
+    if (!item.variantSnapshot) {
+      throw new Error("variantSnapshot missing");
+    }
 
-    const weight = Math.max(
-      0,
-      Number(v?.shipping?.weightGram) || 300
-    );
+    const v = item.variantSnapshot;
+    const qty = Number(item.quantity) || 1;
 
-    const extra = Math.max(
-      0,
-      Number(v?.shipping?.extraShippingFee) || 0
-    );
+    const w = Number(v?.shipping?.weightGram) || 300;
+    const extra = Number(v?.shipping?.extraShippingFee) || 0;
+    const bulky = Boolean(v?.shipping?.bulky);
 
-    const qty = Math.max(1, Number(item.quantity) || 1);
-
-    totalWeight += weight * qty;
+    totalWeight += w * qty;
     itemExtra += extra * qty;
+
+    if (bulky) {
+      bulkyExtra += inside
+        ? setting.bulkyInsideFee * qty
+        : setting.bulkyOutsideFee * qty;
+    }
+
   }
 
-  // =========================
-  // ✅ Slab calculation safe
-  // =========================
+  /* ---------- slab incremental ---------- */
+
   let slabExtra = 0;
 
-  const slabs = Array.isArray(setting.weightSlabs)
-    ? [...setting.weightSlabs].sort(
-        (a, b) => a.uptoGram - b.uptoGram
-      )
-    : [];
+  const slabs = (setting.weightSlabs || [])
+    .sort((a,b)=> a.uptoGram - b.uptoGram);
 
-  if (slabs.length > 0) {
-    let slab =
-      slabs.find(s => totalWeight <= s.uptoGram) ||
-      slabs[slabs.length - 1]; // fallback last slab
+  if (slabs.length) {
 
-    slabExtra = inside
-      ? Math.max(0, Number(slab.insideExtra) || 0)
-      : Math.max(0, Number(slab.outsideExtra) || 0);
+    let prevExtra = 0;
+
+    for (const slab of slabs) {
+      if (totalWeight <= slab.uptoGram) {
+        const cur = inside
+          ? slab.insideExtra
+          : slab.outsideExtra;
+
+        slabExtra = Math.max(0, cur - prevExtra);
+        break;
+      }
+
+      prevExtra = inside
+        ? slab.insideExtra
+        : slab.outsideExtra;
+    }
+
+    /* overflow beyond last slab */
+
+    const last = slabs[slabs.length - 1];
+
+    if (totalWeight > last.uptoGram) {
+      const unit = last.uptoGram;
+      const mult = Math.ceil(totalWeight / unit);
+
+      const unitExtra = inside
+        ? last.insideExtra
+        : last.outsideExtra;
+
+      slabExtra = unitExtra * mult;
+    }
   }
 
-  // =========================
-  // ✅ COD extra safe
-  // =========================
-  const codExtra =
-    (paymentMethod || "").toUpperCase() === "COD"
-      ? codExtraFee
-      : 0;
+  /* ---------- final ---------- */
 
-  // =========================
-  // ✅ Final total
-  // =========================
-  const total = base + slabExtra + itemExtra + codExtra;
+  const total =
+    base +
+    slabExtra +
+    itemExtra +
+    bulkyExtra;
 
   return {
     total,
     breakdown: {
       base,
-      weightExtra: slabExtra,
+      slabExtra,
       itemExtra,
-      codExtra,
+      bulkyExtra,
       totalWeight,
-      insideCity: inside,
-    },
+      inside,
+      subtotal
+    }
   };
 };

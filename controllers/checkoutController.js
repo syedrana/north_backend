@@ -174,6 +174,7 @@ const ProductVariant = require("../models/productVariant");
 const Checkout = require("../models/checkout");
 const calculateShipping = require("../utils/calculateShipping");
 const Address = require("../models/address");
+const calculateCodFee = require("../utils/calculateCodFee");
 
 /**
  * GET /checkout
@@ -208,11 +209,18 @@ exports.getCheckout = async (req, res) => {
 exports.createCheckoutFromCart = async (req, res) => {
   const userId = req.user._id;
 
-  // 🔥 delete previous draft checkout
+  /* =========================
+     REMOVE OLD DRAFT
+  ========================= */
+
   await Checkout.deleteMany({
     userId,
     status: "draft",
   });
+
+  /* =========================
+     LOAD CART WITH SNAPSHOT DATA
+  ========================= */
 
   const cart = await Cart.findOne({ userId })
     .populate("items.productId")
@@ -225,11 +233,16 @@ exports.createCheckoutFromCart = async (req, res) => {
     });
   }
 
+  /* =========================
+     BUILD ITEMS + SNAPSHOT
+  ========================= */
+
   let subtotal = 0;
   const items = [];
 
   for (const item of cart.items) {
     const variant = item.variantId;
+
     const unitPrice = variant.discountPrice || variant.price;
     const lineTotal = unitPrice * item.quantity;
 
@@ -242,66 +255,80 @@ exports.createCheckoutFromCart = async (req, res) => {
       quantity: item.quantity,
       unitPrice,
       lineTotal,
+
+      /* 🔒 ENTERPRISE — snapshot for shipping */
+      variantSnapshot: {
+        shipping: variant.shipping,
+      },
     });
   }
 
-  // const shipping = subtotal >= 3000 ? 0 : 100;
-  const address = await Address.findById(userId);
+  /* =========================
+     FIND DEFAULT ADDRESS
+  ========================= */
 
-  const shipping = await calculateShipping({
-    subtotal: subtotal,
-    address,
-    paymentMethod: "COD",
-  });
+  const defaultAddress = await Address.findOne({
+    userId,
+    isDefault: true,
+  }).lean();
 
-  console.log("subtotal :", subtotal);
-console.log("shipping :", shipping);
+  /* =========================
+     ESTIMATE SHIPPING (OPTIONAL)
+  ========================= */
+
+  let shipping = null;
+
+  if (defaultAddress) {
+    try {
+      shipping = await calculateShipping({
+        items,
+        subtotal,
+        address: defaultAddress,
+      });
+    } catch (e) {
+      console.log("Shipping estimate skipped:", e.message);
+      shipping = null;
+    }
+  }
+ console.log("shipping :", shipping)
+  /* =========================
+     CREATE CHECKOUT
+  ========================= */
+
   const checkout = await Checkout.create({
     userId,
     source: "cart",
     items,
+
     pricing: {
       subtotal,
-      shipping,
+      shipping: shipping?.total || 0,
       discount: 0,
-      payable: subtotal + shipping,
+      payable: subtotal + (shipping?.total || 0),
     },
+
+    shippingAddressId: defaultAddress._id,
+
+    shippingBreakdown: shipping?.breakdown || null,
+
     expiresAt: new Date(Date.now() + 15 * 60 * 1000),
   });
 
-  res.json({ success: true, checkout });
+  res.json({
+    success: true,
+    checkout,
+    shippingEstimated: Boolean(defaultAddress),
+  });
 };
 
 /**
  * PATCH /checkout/:id
  * 👉 update address only
  */
-// exports.updateCheckout = async (req, res) => {
-//   const { id } = req.params;
-//   const { shippingAddressId } = req.body;
-
-//   const checkout = await Checkout.findOne({
-//     _id: id,
-//     userId: req.user._id,
-//     status: "draft",
-//   });
-
-//   if (!checkout) {
-//     return res.status(404).json({
-//       success: false,
-//       message: "Checkout not found",
-//     });
-//   }
-
-//   checkout.shippingAddressId = shippingAddressId;
-//   await checkout.save();
-
-//   res.json({ success: true, checkout });
-// };
 
 exports.updateCheckout = async (req, res) => {
   const { id } = req.params;
-  const { shippingAddressId, paymentMethod } = req.body;
+  const { shippingAddressId } = req.body;
 
   const checkout = await Checkout.findOne({
     _id: id,
@@ -317,31 +344,94 @@ exports.updateCheckout = async (req, res) => {
   }
 
   if (shippingAddressId) {
-    checkout.shippingAddressId = shippingAddressId;
-
-    const address = await Address.findById(shippingAddressId);
-
-    const shipping = await calculateShipping({
-      subtotal: checkout.pricing.subtotal,
-      address,
-      paymentMethod: paymentMethod || "COD",
+    const address = await Address.findOne({
+      _id: shippingAddressId,
+      userId: req.user._id,
     });
 
-    checkout.pricing.shipping = shipping;
+    if (!address) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid address",
+      });
+    }
+
+    const shippingResult = await calculateShipping({
+      items: checkout.items,
+      subtotal: checkout.pricing.subtotal,
+      address,
+    });
+
+    checkout.shippingAddressId = shippingAddressId;
+
+    checkout.pricing.shipping = shippingResult.total;
+
     checkout.pricing.payable =
       checkout.pricing.subtotal +
-      shipping -
-      checkout.pricing.discount;
-  }
+      shippingResult.total -
+      (checkout.pricing.discount || 0);
 
-  if (paymentMethod) {
-    checkout.paymentMethod = paymentMethod;
+    checkout.shippingBreakdown = shippingResult.breakdown;
   }
 
   await checkout.save();
 
+  const populatedCheckout = await Checkout.findById(checkout._id)
+    .populate("shippingAddressId")
+    .populate({
+      path: "items.variantId",
+      select: "color size images stock",
+  });
+
+  res.json({
+    success: true,
+    checkout: populatedCheckout,
+  });
+};
+
+
+
+exports.updatePaymentMethod = async (req, res) => {
+  const { checkoutId } = req.params;
+  const { paymentMethod } = req.body;
+
+  const checkout = await Checkout.findById(checkoutId);
+  if (!checkout) return res.status(404).json({ message: "Checkout not found" });
+
+  let codFee = 0;
+
+  if (paymentMethod === "COD") {
+    codFee = await calculateCodFee(checkout.pricing.subtotal);
+  }
+
+  checkout.pricing.codFee = codFee;
+
+  checkout.pricing.payable =
+    checkout.pricing.subtotal +
+    checkout.pricing.shipping +
+    codFee -
+    checkout.pricing.discount;
+
+  checkout.paymentMethod = paymentMethod;
+
+  await checkout.save();
+
+  const populatedCheckout = await Checkout.findById(checkout._id)
+    .populate("shippingAddressId")
+    .populate({
+      path: "items.variantId",
+      select: "color size images stock",
+  });
+
+  res.json({
+    success: true,
+    checkout: populatedCheckout,
+  });
+
   res.json({ success: true, checkout });
 };
+
+
 
 /**
  * POST /checkout/buy-now

@@ -9,9 +9,32 @@ const getDeliverySetting = async (req, res) => {
   }
 };
 
+function validateCodSlabs(slabs) {
+  if (!slabs || !slabs.length) return false;
+
+  slabs.sort((a, b) => a.min - b.min);
+
+  for (let i = 0; i < slabs.length; i++) {
+    if (slabs[i].min > slabs[i].max) return false;
+
+    if (i > 0 && slabs[i].min <= slabs[i - 1].max) {
+      return false; // overlap
+    }
+  }
+
+  return true;
+}
+
+
 const createOrUpdate = async (req, res) => {
   try {
-    const { insideCityFee, outsideCityFee, freeAbove, codExtraFee, insideCityName, weightSlabs } = req.body;
+    const { insideCityFee, outsideCityFee, freeAbove, insideCityName, bulkyInsideFee, bulkyOutsideFee, weightSlabs, codSlabs } = req.body;
+
+    if (!validateCodSlabs(codSlabs)) {
+      return res.status(400).json({
+        message: "Invalid COD slabs configuration",
+      });
+    }
 
     await DeliverySetting.updateMany({}, { isActive: false });
 
@@ -19,10 +42,13 @@ const createOrUpdate = async (req, res) => {
       insideCityFee: insideCityFee,
       outsideCityFee: outsideCityFee,
       freeAbove: freeAbove,
-      codExtraFee: codExtraFee,
       insideCityName: insideCityName,
-      isActive: true,
+      bulkyInsideFee: bulkyInsideFee,
+      bulkyOutsideFee: bulkyOutsideFee,
       weightSlabs: weightSlabs || [],
+      codFeeType: "slab",
+      codSlabs: codSlabs,
+      isActive: true,
     });
 
     res.json(setting);

@@ -1,103 +1,157 @@
 const mongoose = require("mongoose");
+const Checkout = require("../models/checkout");
+const ProductVariant = require("../models/productVariant");
 const Order = require("../models/order");
 const Cart = require("../models/cart");
-const ProductVariant = require("../models/productVariant");
+const Address = require("../models/address");
 
-exports.createCODOrder = async (req, res) => {
+exports.confirmOrder = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
+    const { checkoutId, paymentMethod } = req.body;
     const userId = req.user._id;
-    const { shippingAddress } = req.body;
 
-    if (!shippingAddress) {
-      throw new Error("Shipping address is required");
+    /* ===========================
+       1️⃣ Load Checkout
+    =========================== */
+
+    const checkout = await Checkout.findOne({
+      _id: checkoutId,
+      userId,
+      status: "draft",
+      expiresAt: { $gt: new Date() },
+    }).session(session);
+
+    if (!checkout) {
+      throw new Error("Checkout invalid or expired");
     }
 
-    // 1️⃣ Load cart
-    const cart = await Cart.findOne({ userId })
-      .populate("items.productId")
-      .populate("items.variantId")
-      .session(session);
-
-    if (!cart || cart.items.length === 0) {
-      throw new Error("Cart is empty");
+    if (!checkout.shippingAddressId) {
+      throw new Error("Shipping address missing");
     }
 
-    let totalAmount = 0;
-    const orderItems = [];
+    /* ===========================
+       2️⃣ Validate & Deduct Stock
+    =========================== */
 
-    // 2️⃣ Loop cart items
-    for (const item of cart.items) {
-      const variant = await ProductVariant.findById(item.variantId._id).session(session);
+    for (const item of checkout.items) {
+      const variant = await ProductVariant.findById(
+        item.variantId
+      ).session(session);
 
       if (!variant) {
-        throw new Error("Product variant not found");
+        throw new Error("Variant not found");
       }
 
-      if (variant.stock < item.quantity) {
-        throw new Error(`Insufficient stock for SKU ${variant.sku}`);
+      if (variant.availableStock < item.quantity) {
+        throw new Error(
+          `Insufficient stock for ${item.name}`
+        );
       }
 
-      const unitPrice =
-        variant.discountPrice > 0 ? variant.discountPrice : variant.price;
+      // 🔥 Deduct actual stock
+      variant.stock -= item.quantity;
 
-      totalAmount += unitPrice * item.quantity;
-
-      orderItems.push({
-        productId: item.productId._id,
-        variantId: variant._id,
-        name: item.productId.name,
-        quantity: item.quantity,
-        price: unitPrice,
-      });
-
-      // 3️⃣ Deduct stock
-      await ProductVariant.updateOne(
-        { _id: variant._id },
-        { $inc: { stock: -item.quantity } },
-        { session }
-      );
+      await variant.save({ session });
     }
 
-    // 4️⃣ Create order
+    /* ===========================
+       3️⃣ Snapshot Address
+    =========================== */
+
+    const address = await Address.findById(
+      checkout.shippingAddressId
+    ).session(session);
+
+    if (!address) {
+      throw new Error("Address not found");
+    }
+
+    /* ===========================
+       4️⃣ Create Order
+    =========================== */
+
     const order = await Order.create(
       [
         {
           userId,
-          items: orderItems,
-          totalAmount,
-          shippingPrice: 0,
-          shippingAddress,
-          paymentMethod: "COD",
-          paymentStatus: "pending",
+          items: checkout.items.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.unitPrice,
+          })),
+          totalAmount: checkout.pricing.payable,
+          shippingPrice: checkout.pricing.shipping,
+
+          shippingAddress: {
+            fullName: address.fullName,
+            phone: address.phone,
+            division: address.division,
+            district: address.district,
+            area: address.area,
+            addressLine: address.addressLine,
+          },
+
+          paymentMethod,
+          paymentStatus:
+            paymentMethod === "COD" ? "pending" : "pending",
           orderStatus: "pending",
         },
       ],
       { session }
     );
 
-    // 5️⃣ Clear cart
+    /* ===========================
+       5️⃣ Update Checkout
+    =========================== */
+
+    checkout.status = "completed";
+    await checkout.save({ session });
+
+    /* ===========================
+       6️⃣ Clear Cart
+    =========================== */
+
     await Cart.deleteOne({ userId }).session(session);
 
-    // 6️⃣ Commit
+    /* ===========================
+       7️⃣ Commit Transaction
+    =========================== */
+
     await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json({
+    /* ===========================
+       8️⃣ COD vs ONLINE Split
+    =========================== */
+
+    if (paymentMethod === "COD") {
+      return res.json({
+        success: true,
+        order: order[0],
+        paymentRequired: false,
+      });
+    }
+
+    // 👉 Online Payment Placeholder
+    return res.json({
       success: true,
-      message: "Order placed successfully",
       order: order[0],
+      paymentRequired: true,
+      message: "Redirect to payment gateway",
     });
-  } catch (error) {
-    // ❌ Rollback
+
+  } catch (err) {
     await session.abortTransaction();
     session.endSession();
 
     res.status(400).json({
       success: false,
-      message: error.message,
+      message: err.message,
     });
   }
 };

@@ -27,17 +27,36 @@ const deliverySettingSchema = new Schema({
         min: 0,
         default: 3000,
     },
-    codExtraFee: {
-        type: Number,
-        min: 0,
-        default: 0,
-    },
     insideCityName: {
         type: String,
         required: [true, "Please enter Inside City Name"],
         default: "Dhaka",
     },
+    bulkyInsideFee: {
+        type: Number,
+        required: [true, "Please enter Bulky Inside Fee"],
+        default: 40
+    },
+    bulkyOutsideFee: {
+        type: Number,
+        required: [true, "Please enter Bulky Outside Fee"],
+        default: 80
+    },
+
     weightSlabs: [slabSchema],
+
+    codFeeType: {
+        type: String,
+        enum: ["slab"],
+        default: "slab",
+    },
+    codSlabs: [
+        {
+        min: { type: Number, required: true },
+        max: { type: Number, required: true },
+        fee: { type: Number, required: true },
+        },
+    ],
     isActive: {
         type: Boolean,
         default: true,

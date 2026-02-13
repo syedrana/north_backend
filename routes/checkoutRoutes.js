@@ -6,12 +6,14 @@ const {
   getCheckout,
   createCheckoutFromCart,
   updateCheckout,
+  updatePaymentMethod,
   buyNowCheckout,
 } = require("../controllers/checkoutController");
 
 router.get("/", auth, getCheckout);
 router.post("/", auth, createCheckoutFromCart);
 router.patch("/:id", auth, updateCheckout);
+router.patch("/payment/:id", auth, updatePaymentMethod);
 router.post("/buy-now", auth, buyNowCheckout);
 
 module.exports = router;

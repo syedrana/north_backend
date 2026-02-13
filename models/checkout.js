@@ -32,12 +32,20 @@ const checkoutSchema = new mongoose.Schema(
         quantity: Number,
         unitPrice: Number,
         lineTotal: Number,
+        variantSnapshot: {
+          shipping: {
+            weightGram: Number,
+            extraShippingFee: Number,
+            bulky: Boolean,
+          },
+        },
       },
     ],
 
     pricing: {
       subtotal: Number,
       shipping: Number,
+      codFee: Number,
       discount: Number,
       payable: Number,
     },
@@ -45,6 +53,10 @@ const checkoutSchema = new mongoose.Schema(
     shippingAddressId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Address",
+    },
+
+    paymentMethod: {
+      type: String,
     },
 
     status: {

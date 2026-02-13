@@ -89,6 +89,11 @@ const productVariantSchema = new mongoose.Schema(
         default: false,
       },
     },
+    reservedStock: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     isDefault: {
       type: Boolean,
       default: false,
