@@ -5,7 +5,7 @@ const checkRole = require("../middleware/checkRole");
 const securapi = require('../middleware/secureApi');
 
 const {
-  getAllProducts,
+  // getAllProducts,
   getSingleProduct,
   getAdminProducts,
   createProduct,
@@ -14,6 +14,8 @@ const {
   getAdminProductWithVariants,
   togglePublishProduct,
 } = require("../controllers/productController");
+
+const {getAllProducts} = require("../controllers/shopController");
 
 
 // Public

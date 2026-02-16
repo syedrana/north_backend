@@ -1,45 +1,58 @@
 const mongoose = require("mongoose");
 
+const orderItemSchema = new mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: [true, "Product ID is required"],
+  },
+  variantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ProductVariant",
+    required: [true, "Variant ID is required"],
+  },
+  name: { type: String, required: true },
+  sku: String,
+  attributes: Object,
+  image: { type: String },
+  quantity: {
+    type: Number,
+    required: [true, "Quantity is required"],
+    min: [1, "Quantity cannot be less than 1"],
+  },
+  price: {
+    type: Number,
+    required: [true, "Price is required"],
+    min: [0, "Price cannot be negative"],
+  },
+  lineTotal: {
+    type: Number,
+    required: [true, "lineTotal is required"],
+    min: [0, "lineTotal cannot be negative"],
+  },
+
+}, { _id: false });
+
 const orderSchema = new mongoose.Schema(
   {
+    orderNumber: {
+      type: String,
+      unique: true,
+      index: true,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: [true, "Order must belong to a user"],
     },
-    items: [
-      {
-        productId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-          required: [true, "Product ID is required"],
-        },
-        variantId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "ProductVariant",
-          required: [true, "Variant ID is required"],
-        },
-        name: { type: String, required: true }, // স্ন্যাপশট: প্রোডাক্টের নাম পরিবর্তন হলেও অর্ডারে আগের নাম থাকবে
-        quantity: {
-          type: Number,
-          required: [true, "Quantity is required"],
-          min: [1, "Quantity cannot be less than 1"],
-        },
-        price: {
-          type: Number,
-          required: [true, "Price is required"],
-          min: [0, "Price cannot be negative"],
-        },
-      },
-    ],
-    totalAmount: {
-      type: Number,
-      required: [true, "Total amount is required"],
-      min: [0, "Total amount cannot be negative"],
-    },
-    shippingPrice: {
-      type: Number,
-      default: 0,
+    items: [orderItemSchema],
+    pricing: {
+      subtotal: { type: Number, required: true },
+      shipping: { type: Number, default: 0 },
+      codFee: { type: Number, default: 0 },
+      discount: { type: Number, default: 0 },
+      tax: { type: Number, default: 0 },
+      total: { type: Number, required: true },
     },
     shippingAddress: {
       fullName: { type: String, required: [true, "Full name is required"], trim: true },
@@ -69,17 +82,35 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending", "paid", "failed", "refunded"],
       default: "pending",
     },
+    paymentInfo: {
+      transactionId: String,
+      gateway: String,
+      currency: { type: String, default: "BDT" },
+      paidAt: Date,
+    },
     orderStatus: {
       type: String,
-      enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
+      enum: [
+        "pending",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "returned",
+      ],
       default: "pending",
     },
-    paymentInfo: {
-      id: { type: String }, // Transaction ID (Stripe/SSLCommerz থেকে আসবে)
-      status: { type: String },
-    },
-    deliveredAt: { type: Date },
-    paidAt: { type: Date },
+    cancellationReason: String,
+
+    deliveredAt: Date,
+
+    orderLogs: [
+      {
+        status: String,
+        note: String,
+        updatedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -88,7 +88,8 @@ productSchema.index({
   name: "text",
   description: "text",
   brand: "text",
-  tags: "text"
+  tags: "text",
+  slug: "text",
 });
 
 

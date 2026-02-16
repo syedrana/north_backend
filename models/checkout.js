@@ -43,11 +43,11 @@ const checkoutSchema = new mongoose.Schema(
     ],
 
     pricing: {
-      subtotal: Number,
-      shipping: Number,
-      codFee: Number,
-      discount: Number,
-      payable: Number,
+      subtotal: { type: Number, default: 0 },
+      shipping: { type: Number, default: 0 },
+      codFee: { type: Number, default: 0 },
+      discount: { type: Number, default: 0 },
+      payable: { type: Number, default: 0 },
     },
 
     shippingAddressId: {
@@ -57,8 +57,9 @@ const checkoutSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
+      enum: ["COD", "ONLINE"],
+      default: null,
     },
-
     status: {
       type: String,
       enum: ["draft", "completed", "expired"],

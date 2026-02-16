@@ -290,7 +290,7 @@ exports.createCheckoutFromCart = async (req, res) => {
       shipping = null;
     }
   }
- console.log("shipping :", shipping)
+ 
   /* =========================
      CREATE CHECKOUT
   ========================= */
@@ -303,6 +303,7 @@ exports.createCheckoutFromCart = async (req, res) => {
     pricing: {
       subtotal,
       shipping: shipping?.total || 0,
+      codFee: 0,
       discount: 0,
       payable: subtotal + (shipping?.total || 0),
     },
@@ -382,38 +383,44 @@ exports.updateCheckout = async (req, res) => {
       path: "items.variantId",
       select: "color size images stock",
   });
-
+  
   res.json({
     success: true,
     checkout: populatedCheckout,
   });
 };
 
-
-
 exports.updatePaymentMethod = async (req, res) => {
   const { checkoutId } = req.params;
   const { paymentMethod } = req.body;
 
-  const checkout = await Checkout.findById(checkoutId);
-  if (!checkout) return res.status(404).json({ message: "Checkout not found" });
+  console.log("chack out: ", checkoutId);
+
+  const checkout = await Checkout.findOne({
+    _id: checkoutId,
+    userId: req.user._id,
+    status: "draft",
+  });
+
+  if (!checkout) {
+    return res.status(404).json({
+      success: false,
+      message: "Checkout not found",
+    });
+  }
 
   let codFee = 0;
 
   if (paymentMethod === "COD") {
     codFee = await calculateCodFee(checkout.pricing.subtotal);
+    console.log("cod fee: ", codFee);
   }
 
+  checkout.paymentMethod = paymentMethod;
   checkout.pricing.codFee = codFee;
 
-  checkout.pricing.payable =
-    checkout.pricing.subtotal +
-    checkout.pricing.shipping +
-    codFee -
-    checkout.pricing.discount;
-
-  checkout.paymentMethod = paymentMethod;
-
+  checkout.pricing.payable = checkout.pricing.subtotal + checkout.pricing.shipping + codFee - (checkout.pricing.discount || 0);
+  
   await checkout.save();
 
   const populatedCheckout = await Checkout.findById(checkout._id)
@@ -421,14 +428,12 @@ exports.updatePaymentMethod = async (req, res) => {
     .populate({
       path: "items.variantId",
       select: "color size images stock",
-  });
+    });
 
   res.json({
     success: true,
     checkout: populatedCheckout,
   });
-
-  res.json({ success: true, checkout });
 };
 
 
