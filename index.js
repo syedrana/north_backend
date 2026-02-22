@@ -18,7 +18,8 @@ const orderRoutes = require("./routes/orderRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const checkoutRoutes = require("./routes/checkoutRoutes");
 const addressRoutes = require("./routes/addressRoutes");
-const deliveryRoutes = require("./routes/deliveryRoutes")
+const deliveryRoutes = require("./routes/deliveryRoutes");
+const searchRoutes = require("./routes/searchRoutes");
 
 const app =express();
 
@@ -46,6 +47,7 @@ app.use("/customer", customerRoutes);
 app.use("/checkout", checkoutRoutes);
 app.use("/address", addressRoutes);
 app.use("/deliverysetting", deliveryRoutes);
+app.use("/searchanalytics/", searchRoutes);
 
 
 // ✅ Root Route (for Render test)----------------------------------------------------------
