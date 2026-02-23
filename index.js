@@ -59,6 +59,7 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 7000;
 
 app.use((err, req, res, next) => {
+  res.set("Cache-Control", "no-store");
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({
     success: false,

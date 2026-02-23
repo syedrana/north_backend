@@ -2,7 +2,7 @@ const SearchAnalytics = require("../../models/searchAnalytics");
 
 exports.trackSearch = async (req, res) => {
   try {
-    const { keyword, resultCount } = req.body;
+    const { keyword, resultCount, sessionId } = req.body;
 
     if (!keyword) {
       return res.status(400).json({
@@ -15,6 +15,8 @@ exports.trackSearch = async (req, res) => {
       keyword: keyword,
       resultCount: resultCount,
       userId: req.user ? req.user._id : null,
+      sessionId: sessionId,
+      device: req.headers["user-agent"],
     });
 
     res.json({
@@ -29,7 +31,7 @@ exports.trackSearch = async (req, res) => {
 
 exports.updateClickedProduct = async (req, res) => {
   try {
-    const { searchId, productId } = req.body;
+    const { searchId, productId, position } = req.body;
 
     // ভ্যালিডেশন: যদি আইডিগুলো না থাকে
     if (!searchId || !productId) {
@@ -38,7 +40,10 @@ exports.updateClickedProduct = async (req, res) => {
 
     const updatedData = await SearchAnalytics.findByIdAndUpdate(
       searchId, 
-      { clickedProduct: productId },
+      { 
+        clickedProduct: productId,
+        clickPosition: position, 
+      },
       { new: true } // এটি নতুন আপডেট হওয়া ডাটাটি রিটার্ন করবে
     );
 
@@ -53,8 +58,26 @@ exports.updateClickedProduct = async (req, res) => {
   }
 };
 
+
 exports.getDashboard = async (req, res) => {
   try {
+    const totalSearches = await SearchAnalytics.countDocuments();
+
+    const uniqueKeywords = await SearchAnalytics.distinct("keyword");
+
+    const zeroResults = await SearchAnalytics.countDocuments({
+      resultCount: 0,
+    });
+
+    const clickedSearches = await SearchAnalytics.countDocuments({
+      clickedProduct: { $ne: null },
+    });
+
+    const ctr =
+      totalSearches === 0
+        ? 0
+        : ((clickedSearches / totalSearches) * 100).toFixed(2);
+
     const topKeywords = await SearchAnalytics.aggregate([
       {
         $group: {
@@ -66,18 +89,94 @@ exports.getDashboard = async (req, res) => {
       { $limit: 10 },
     ]);
 
-    const zeroResults = await SearchAnalytics.countDocuments({
-      resultCount: 0,
-    });
+    const recentSearches = await SearchAnalytics.find()
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("keyword resultCount createdAt");
 
     res.json({
       success: true,
       data: {
-        topKeywords,
+        totalSearches,
+        uniqueKeywords: uniqueKeywords.length,
         zeroResults,
+        clickedSearches,
+        ctr,
+        topKeywords,
+        recentSearches,
       },
     });
   } catch (err) {
     res.status(500).json({ success: false });
   }
+};
+
+
+exports.getOverview = async (req, res) => {
+  const { from, to } = req.query;
+
+  const match = {
+    createdAt: {
+      $gte: new Date(from),
+      $lte: new Date(to),
+    },
+  };
+
+  const totalSearches = await SearchAnalytics.countDocuments(match);
+
+  const totalClicks = await SearchAnalytics.countDocuments({
+    ...match,
+    clickedProduct: { $ne: null },
+  });
+
+  const zeroResults = await SearchAnalytics.countDocuments({
+    ...match,
+    resultCount: 0,
+  });
+
+  const ctr = totalClicks / (totalSearches || 1);
+
+  res.json({
+    totalSearches,
+    totalClicks,
+    zeroResults,
+    ctr,
+  });
+};
+
+
+exports.getKeywordAnalytics = async (req, res) => {
+  const data = await SearchAnalytics.aggregate([
+    {
+      $group: {
+        _id: "$keyword",
+        searches: { $sum: 1 },
+        clicks: {
+          $sum: {
+            $cond: [{ $ifNull: ["$clickedProduct", false] }, 1, 0],
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        ctr: { $divide: ["$clicks", "$searches"] },
+      },
+    },
+    { $sort: { searches: -1 } },
+  ]);
+
+  res.json(data);
+};
+
+
+exports.getSessions = async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const sessions = await SearchAnalytics.find()
+    .populate("userId", "firstName email")
+    .populate("clickedProduct", "name slug")
+    .sort({ createdAt: -1 })
+    .limit(100);
+
+  res.json(sessions);
 };

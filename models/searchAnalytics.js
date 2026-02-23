@@ -11,7 +11,7 @@ const searchAnalyticsSchema = new mongoose.Schema(
     },
     userId:{
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", 
+      ref: "Customer", 
       required: false, 
       index: true,
     },
@@ -25,11 +25,26 @@ const searchAnalyticsSchema = new mongoose.Schema(
       ref: "Product",
       default: null,
     },
+    clickPosition: Number,
+
+    sessionId: {
+      type: String, 
+      required: false, 
+      index: true
+    },
+
+    device: String,
+
+    revenue: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
 
 searchAnalyticsSchema.index({ keyword: 1, createdAt: -1 });
+searchAnalyticsSchema.index({ sessionId: 1 });
 
 module.exports = mongoose.model(
   "SearchAnalytics",
