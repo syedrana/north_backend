@@ -124,4 +124,7 @@ productSchema.virtual("variants", {
   foreignField: "productId",
 });
 
-module.exports = mongoose.model("Product", productSchema);
+// module.exports = mongoose.model("Product", productSchema);
+module.exports =
+  mongoose.models.Product ||
+  mongoose.model("Product", productSchema);

@@ -4,44 +4,41 @@ const wishlistSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "Wishlist must belong to a user"],
-      unique: true, // একজন ইউজারের জন্য কেবল একটি উইশলিস্ট ডকুমেন্ট থাকবে
-      index: true,
+      ref: "Customer",
     },
+    // guestId: {
+    //   type: String,
+    // },
     products: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Product",
-        required: [true, "Product ID is required"],
       },
     ],
   },
-  { 
-    timestamps: true 
-  }
+  { timestamps: true }
 );
 
-// --- এডভান্সড ভ্যালিডেশন ও মিডলওয়্যার ---
+/**
+ * Unique Index (only when field exists)
+ */
+wishlistSchema.index({ userId: 1 }, { unique: true, sparse: true });
+// wishlistSchema.index({ guestId: 1 }, { unique: true, sparse: true });
 
-// ১. ডুপ্লিকেট প্রোডাক্ট সেভ হওয়া আটকানো
-// সেভ করার আগে আমরা নিশ্চিত করবো যে অ্যারের ভেতর একই আইডি দুইবার নেই
-wishlistSchema.pre("save", function (next) {
+wishlistSchema.pre("save", function () {
   const uniqueProducts = [...new Set(this.products.map((id) => id.toString()))];
   if (this.products.length !== uniqueProducts.length) {
     this.products = uniqueProducts;
   }
-  next();
 });
 
-// ২. অটো-পপুলেট মিডলওয়্যার (অপশনাল কিন্তু হেল্পফুল)
-// যখনই উইশলিস্ট খোঁজা হবে, প্রোডাক্টের ডিটেইলস অটোমেটিক চলে আসবে
-wishlistSchema.pre(/^find/, function (next) {
+wishlistSchema.pre(/^find/, function () {
   this.populate({
     path: "products",
-    select: "name slug images price", // শুধু প্রয়োজনীয় ফিল্ডগুলো আনবে
+    select: "name slug brand isActive isPublished",
   });
-  next();
 });
 
-module.exports = mongoose.model("Wishlist", wishlistSchema);
+module.exports =
+  mongoose.models.Wishlist ||
+  mongoose.model("Wishlist", wishlistSchema);

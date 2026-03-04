@@ -1,5 +1,7 @@
 const Cart = require("../models/cart");
 const ProductVariant = require("../models/productVariant");
+const Address = require("../models/address");
+const calculateShipping = require("../utils/calculateShipping");
 
 /* =====================================================
    🛒 GET USER CART
@@ -32,6 +34,8 @@ const getCart = async (req, res) => {
           subtotal: 0,
           itemCount: 0,
         },
+        delivery: null,
+        addressExists: false,
       });
     }
 
@@ -43,6 +47,42 @@ const getCart = async (req, res) => {
       itemCount += item.quantity;
     });
 
+    /* =========================
+       DELIVERY ESTIMATE
+    ========================= */
+
+    let delivery = null;
+    let addressExists = false;
+
+    const defaultAddress = await Address.findOne({
+      userId: req.user._id,
+      isDefault: true,
+    }).lean();
+
+    if (defaultAddress) {
+      addressExists = true;
+
+      try {
+        const shippingItems = cart.items.map((item) => ({
+          quantity: item.quantity,
+          variantSnapshot: {
+            shipping: item.variantId.shipping,
+          },
+        }));
+
+        const shippingResult = await calculateShipping({
+          items: shippingItems,
+          subtotal,
+          address: defaultAddress,
+        });
+
+        delivery = shippingResult.total;
+      } catch (e) {
+        console.log("Cart shipping estimate error:", e.message);
+        delivery = null;
+      }
+    }
+
     res.json({
       success: true,
       cart,
@@ -50,6 +90,8 @@ const getCart = async (req, res) => {
         subtotal,
         itemCount,
       },
+      delivery,
+      addressExists,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -138,70 +180,6 @@ const addToCart = async (req, res) => {
 /* =====================================================
    🔄 UPDATE CART ITEM QUANTITY
 ===================================================== */
-// const updateCartItem = async (req, res) => {
-//   try {
-//     const { variantId, quantity } = req.body;
-
-//     if (!variantId || !quantity || quantity < 1) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "VariantId and valid quantity are required",
-//       });
-//     }
-
-//     const variant = await ProductVariant.findById(variantId);
-//     if (!variant) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Product variant not found",
-//       });
-//     }
-
-//     if (variant.stock < quantity) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Not enough stock available",
-//       });
-//     }
-
-//     const cart = await Cart.findOne({
-//       userId: req.user._id,
-//       status: "active",
-//     });
-
-//     if (!cart) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Cart not found",
-//       });
-//     }
-
-//     const item = cart.items.find(
-//       (item) => item.variantId.toString() === variantId
-//     );
-
-//     if (!item) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Item not found in cart",
-//       });
-//     }
-
-//     item.quantity = quantity;
-//     item.price = variant.discountPrice ?? variant.price;
-//     item.originalPrice = variant.price;
-//     item.discount = variant.discountPrice
-//       ? variant.price - variant.discountPrice
-//       : 0;
-
-//     await cart.save();
-
-//     res.json({ success: true, cart });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
-
 
 const updateCartItem = async (req, res) => {
   try {

@@ -55,6 +55,11 @@ const checkoutSchema = new mongoose.Schema(
       ref: "Address",
     },
 
+    shippingBreakdown: {
+      type: Object,
+      default: null
+    },
+
     paymentMethod: {
       type: String,
       enum: ["COD", "ONLINE"],
