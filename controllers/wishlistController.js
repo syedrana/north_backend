@@ -541,8 +541,6 @@ const toggleWishlist = async (req, res) => {
 
     const exists = wishlist?.products?.some((p) => p._id?.toString() === productId);
 
-    console.log("exists :", exists);
-
     if (exists) {
       wishlist.products = wishlist?.products?.filter((p) =>  p._id?.toString() !== productId);
 
