@@ -6,9 +6,7 @@ const wishlistSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
     },
-    // guestId: {
-    //   type: String,
-    // },
+    
     products: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -23,7 +21,6 @@ const wishlistSchema = new mongoose.Schema(
  * Unique Index (only when field exists)
  */
 wishlistSchema.index({ userId: 1 }, { unique: true, sparse: true });
-// wishlistSchema.index({ guestId: 1 }, { unique: true, sparse: true });
 
 wishlistSchema.pre("save", function () {
   const uniqueProducts = [...new Set(this.products.map((id) => id.toString()))];
