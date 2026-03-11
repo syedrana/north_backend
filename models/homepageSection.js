@@ -36,4 +36,6 @@ const homepageSectionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("HomepageSection", homepageSectionSchema);
+module.exports =
+  mongoose.models.HomepageSection ||
+  mongoose.model("HomepageSection", homepageSectionSchema);

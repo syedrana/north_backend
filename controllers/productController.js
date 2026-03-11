@@ -1,57 +1,9 @@
 const Product = require("../models/product");
 const ProductVariant = require("../models/productVariant");
 const slugify = require("slugify");
+const { trackProductView } = require("../services/recentlyViewedService");
 // const uploadToCloudinary = require("../helpers/uploadToCloudinaryHelper");
 // const cloudinary = require("../config/cloudinary");
-
-
-// @desc    Get all products with filtering, sorting & pagination
-// @route   GET /api/products
-// const getAllProducts = async (req, res, next) => {
-//   try {
-//     const { category, search, minPrice, maxPrice, sort, page = 1, limit = 12 } = req.query;
-
-//     const query = { isActive: true };
-
-//     // category filtering
-//     if (category) query.categoryId = category;
-
-//     // Search by name
-//     if (search) query.name = { $regex: search, $options: "i" };
-
-//     // Price range filtering
-//     if (minPrice || maxPrice) {
-//       query.price = {};
-//       if (minPrice) query.price.$gte = Number(minPrice);
-//       if (maxPrice) query.price.$lte = Number(maxPrice);
-//     }
-
-//     // Sorting logic
-//     let sortBy = { createdAt: -1 };
-//     if (sort === "price-low") sortBy = { price: 1 };
-//     if (sort === "price-high") sortBy = { price: -1 };
-
-//     const products = await Product.find(query)
-//       .populate("categoryId", "name")
-//       .skip((page - 1) * limit)
-//       .limit(Number(limit))
-//       .sort(sortBy);
-
-//     const total = await Product.countDocuments(query);
-
-//     res.status(200).json({
-//       success: true,
-//       total,
-//       totalPages: Math.ceil(total / limit),
-//       currentPage: Number(page),
-//       products,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-
 
 /**
  * @desc    SHOP PAGE - Get all products (Daraz style)
@@ -269,6 +221,15 @@ const getSingleProduct = async (req, res, next) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
+
+    const userId = req.user?._id || null;
+    const guestId = req.headers["x-guest-id"] || null;
+
+    await trackProductView({
+      userId,
+      guestId,
+      productId: product._id,
+    });
 
     res.status(200).json({
       success: true,

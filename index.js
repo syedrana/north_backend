@@ -21,6 +21,8 @@ const addressRoutes = require("./routes/addressRoutes");
 const deliveryRoutes = require("./routes/deliveryRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
+const homepageRoutes = require("./routes/homepageRoutes");
+const recentlyViewedRoutes = require("./routes/recentlyViewedRoutes");
 
 const app =express();
 
@@ -50,6 +52,8 @@ app.use("/address", addressRoutes);
 app.use("/deliverysetting", deliveryRoutes);
 app.use("/searchanalytics/", searchRoutes);
 app.use("/wishlist/", wishlistRoutes);
+app.use("/homepage", homepageRoutes);
+app.use("/recentlyviewed", recentlyViewedRoutes);
 
 
 // ✅ Root Route (for Render test)----------------------------------------------------------
