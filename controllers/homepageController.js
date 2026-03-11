@@ -1,12 +1,24 @@
-const redis = require("../config/redis");
 const HomepageSection = require("../models/homepageSection");
 const { buildHomepageSections } = require("../services/homepageSectionService");
 
-const HOMEPAGE_CACHE_KEY = "homepage_data";
-const HOMEPAGE_CACHE_TTL_SECONDS = 60 * 5;
+const {
+  getHomepageCache,
+  setHomepageCache,
+  invalidateHomepageCache,
+} = require("../services/homepageCacheService");
+const { validateSectionSettings } = require("../utils/homepageSectionSettings");
 
 const asyncHandler = (handler) => (req, res, next) => {
   Promise.resolve(handler(req, res, next)).catch(next);
+};
+
+const getValidatedSettings = (type, settings = {}) => {
+  try {
+    return validateSectionSettings(type, settings);
+  } catch (error) {
+    error.statusCode = 400;
+    throw error;
+  }
 };
 
 const createHomepageSection = asyncHandler(async (req, res) => {
@@ -19,15 +31,18 @@ const createHomepageSection = asyncHandler(async (req, res) => {
     });
   }
 
+  const validatedSettings = getValidatedSettings(type, settings || {});
+
   const section = new HomepageSection({
     title,
     type,
     order,
     status,
-    settings,
+    settings: validatedSettings,
   });
 
   await section.save();
+  await invalidateHomepageCache();
 
   res.status(201).json({
     success: true,
@@ -52,9 +67,13 @@ const updateHomepageSection = asyncHandler(async (req, res) => {
   if (type !== undefined) section.type = type;
   if (order !== undefined) section.order = order;
   if (status !== undefined) section.status = status;
-  if (settings !== undefined) section.settings = settings;
+  if (settings !== undefined) {
+    const sectionType = type !== undefined ? type : section.type;
+    section.settings = getValidatedSettings(sectionType, settings);
+  }
 
   await section.save();
+  await invalidateHomepageCache();
 
   res.status(200).json({
     success: true,
@@ -63,58 +82,28 @@ const updateHomepageSection = asyncHandler(async (req, res) => {
 });
 
 const getHomepage = asyncHandler(async (req, res) => {
+  const cachedSections = await getHomepageCache();
+
+  if (cachedSections) {
+    return res.status(200).json({
+      success: true,
+      source: "cache",
+      sections: cachedSections,
+    });
+  }
+
   const sections = await buildHomepageSections();
+  await setHomepageCache(sections);
 
   res.status(200).json({
     success: true,
+    source: "database",
     sections,
   });
 });
 
-const getHomepageData = async (req, res, next) => {
-  try {
-    try {
-      const cachedValue = await redis.get(HOMEPAGE_CACHE_KEY);
-
-      if (cachedValue) {
-        return res.status(200).json({
-          success: true,
-          source: "cache",
-          sections: JSON.parse(cachedValue),
-        });
-      }
-    } catch (cacheReadError) {
-      console.error("Homepage cache read failed:", cacheReadError.message);
-    }
-
-    const sections = await buildHomepageSections();
-
-    try {
-      await redis.set(
-        HOMEPAGE_CACHE_KEY,
-        JSON.stringify(sections),
-        "EX",
-        HOMEPAGE_CACHE_TTL_SECONDS
-      );
-    } catch (cacheWriteError) {
-      console.error("Homepage cache write failed:", cacheWriteError.message);
-    }
-
-    return res.status(200).json({
-      success: true,
-      source: "database",
-      sections,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 module.exports = {
   createHomepageSection,
   updateHomepageSection,
-  HOMEPAGE_CACHE_KEY,
-  HOMEPAGE_CACHE_TTL_SECONDS,
-  getHomepageData,
   getHomepage,
 };

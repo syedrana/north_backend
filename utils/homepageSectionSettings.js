@@ -87,10 +87,17 @@ function validateProductGridSettings(settings) {
 
 function validateCampaignBannerSettings(settings) {
   const input = ensureObject(settings, "settings");
+  assert(Array.isArray(input.campaigns), "settings.campaigns must be an array");
 
   return {
-    image: ensureString(input.image, "settings.image"),
-    link: ensureString(input.link, "settings.link"),
+    campaigns: input.campaigns.map((campaign, index) => {
+      const current = ensureObject(campaign, `settings.campaigns[${index}]`);
+
+      return {
+        image: ensureString(current.image, `settings.campaigns[${index}].image`),
+        link: ensureString(current.link, `settings.campaigns[${index}].link`),
+      };
+    }),
   };
 }
 
