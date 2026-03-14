@@ -1,5 +1,6 @@
 const HomepageSection = require("../models/homepageSection");
 const { buildHomepageSections } = require("../services/homepageSectionService");
+const uploadToCloudinary = require("../helpers/uploadToCloudinaryHelper");
 
 const {
   getHomepageCache,
@@ -22,8 +23,101 @@ const getValidatedSettings = (type, settings = {}) => {
   }
 };
 
+const parseSettingsInput = (settings) => {
+  if (settings === undefined || settings === null || settings === "") {
+    return {};
+  }
+
+  if (typeof settings === "string") {
+    try {
+      return JSON.parse(settings);
+    } catch (error) {
+      const parsingError = new Error("Invalid JSON format in settings");
+      parsingError.statusCode = 400;
+      throw parsingError;
+    }
+  }
+
+  return settings;
+};
+
+const collectUploadsByIndex = (files = [], fieldName) => {
+  const uploadsByIndex = new Map();
+
+  for (const file of files) {
+    const match = file.fieldname.match(fieldName);
+
+    if (!match) {
+      continue;
+    }
+
+    const index = Number(match[1]);
+
+    if (!Number.isInteger(index) || index < 0) {
+      continue;
+    }
+
+    uploadsByIndex.set(index, file);
+  }
+
+  return uploadsByIndex;
+};
+
+const applyUploadedBannerImages = async (type, settings, files = []) => {
+  if (!Array.isArray(files) || files.length === 0) {
+    return settings;
+  }
+
+  if (type === "hero_banner" && Array.isArray(settings.banners)) {
+    const uploadsByIndex = collectUploadsByIndex(
+      files,
+      /^banners\[(\d+)\]\[image\]$/
+    );
+
+    const fallbackHeroImages = files.filter((file) => file.fieldname === "heroImages");
+
+    for (let index = 0; index < settings.banners.length; index += 1) {
+      const banner = settings.banners[index];
+      const file = uploadsByIndex.get(index) || fallbackHeroImages[index];
+
+      if (!file) {
+        continue;
+      }
+
+      const uploaded = await uploadToCloudinary(file.buffer);
+      banner.image = uploaded.secure_url;
+    }
+  }
+
+  if (type === "campaign_banner" && Array.isArray(settings.campaigns)) {
+    const uploadsByIndex = collectUploadsByIndex(
+      files,
+      /^campaigns\[(\d+)\]\[image\]$/
+    );
+
+    const fallbackCampaignImages = files.filter(
+      (file) => file.fieldname === "campaignImages"
+    );
+
+    for (let index = 0; index < settings.campaigns.length; index += 1) {
+      const campaign = settings.campaigns[index];
+      const file = uploadsByIndex.get(index) || fallbackCampaignImages[index];
+
+      if (!file) {
+        continue;
+      }
+
+      const uploaded = await uploadToCloudinary(file.buffer);
+      campaign.image = uploaded.secure_url;
+    }
+  }
+
+  return settings;
+};
+
 const createHomepageSection = asyncHandler(async (req, res) => {
-  const { title, type, order, status, settings } = req.body;
+  const { title, type, order, status } = req.body;
+  const parsedSettings = parseSettingsInput(req.body.settings);
 
   if (!title || !type) {
     return res.status(400).json({
@@ -32,7 +126,13 @@ const createHomepageSection = asyncHandler(async (req, res) => {
     });
   }
 
-  const validatedSettings = getValidatedSettings(type, settings || {});
+  const settingsWithUploads = await applyUploadedBannerImages(
+    type,
+    parsedSettings,
+    req.files
+  );
+
+  const validatedSettings = getValidatedSettings(type, settingsWithUploads || {});
 
   const section = new HomepageSection({
     title,
@@ -81,7 +181,11 @@ const getHomepageSectionById = asyncHandler(async (req, res) => {
 
 const updateHomepageSection = asyncHandler(async (req, res) => {
   const { sectionId } = req.params;
-  const { title, type, order, status, settings } = req.body;
+  const { title, type, order, status } = req.body;
+  const parsedSettings =
+    req.body.settings !== undefined
+      ? parseSettingsInput(req.body.settings)
+      : undefined;
 
   const section = await HomepageSection.findById(sectionId);
 
@@ -96,9 +200,15 @@ const updateHomepageSection = asyncHandler(async (req, res) => {
   if (type !== undefined) section.type = type;
   if (order !== undefined) section.order = order;
   if (status !== undefined) section.status = status;
-  if (settings !== undefined) {
+  if (parsedSettings !== undefined) {
     const sectionType = type !== undefined ? type : section.type;
-    section.settings = getValidatedSettings(sectionType, settings);
+    const settingsWithUploads = await applyUploadedBannerImages(
+      sectionType,
+      parsedSettings,
+      req.files
+    );
+
+    section.settings = getValidatedSettings(sectionType, settingsWithUploads);
   }
 
   await section.save();
