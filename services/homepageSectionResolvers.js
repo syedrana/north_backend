@@ -188,7 +188,7 @@ const resolveProductGrid = async (settings = {}) => {
   const limit = parsePositiveInteger(settings.limit, DEFAULT_PRODUCT_LIMIT);
   const source =
     settings.source &&
-    ["manual", "trending", "best_seller", "new_arrival"].includes(settings.source)
+    ["manual", "trending", "best_seller", "new_arrival", "category"].includes(settings.source)
       ? settings.source
       : "new_arrival";
 

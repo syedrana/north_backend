@@ -6,6 +6,7 @@ const {
   setHomepageCache,
   invalidateHomepageCache,
 } = require("../services/homepageCacheService");
+
 const { validateSectionSettings } = require("../utils/homepageSectionSettings");
 
 const asyncHandler = (handler) => (req, res, next) => {
@@ -50,6 +51,34 @@ const createHomepageSection = asyncHandler(async (req, res) => {
   });
 });
 
+const listHomepageSections = asyncHandler(async (req, res) => {
+  const sections = await HomepageSection.find({})
+    .sort({ order: 1, createdAt: 1 })
+    .lean();
+
+  res.status(200).json({
+    success: true,
+    sections,
+  });
+});
+
+const getHomepageSectionById = asyncHandler(async (req, res) => {
+  const { sectionId } = req.params;
+  const section = await HomepageSection.findById(sectionId).lean();
+
+  if (!section) {
+    return res.status(404).json({
+      success: false,
+      message: "Homepage section not found",
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    section,
+  });
+});
+
 const updateHomepageSection = asyncHandler(async (req, res) => {
   const { sectionId } = req.params;
   const { title, type, order, status, settings } = req.body;
@@ -81,6 +110,70 @@ const updateHomepageSection = asyncHandler(async (req, res) => {
   });
 });
 
+const deleteHomepageSection = asyncHandler(async (req, res) => {
+  const { sectionId } = req.params;
+
+  const deletedSection = await HomepageSection.findByIdAndDelete(sectionId);
+
+  if (!deletedSection) {
+    return res.status(404).json({
+      success: false,
+      message: "Homepage section not found",
+    });
+  }
+
+  await invalidateHomepageCache();
+
+  res.status(200).json({
+    success: true,
+    message: "Homepage section deleted successfully",
+  });
+});
+
+const reorderHomepageSections = asyncHandler(async (req, res) => {
+  const { sectionOrders } = req.body;
+
+  if (!Array.isArray(sectionOrders) || sectionOrders.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "sectionOrders must be a non-empty array",
+    });
+  }
+
+  const bulkOperations = sectionOrders.map((item, index) => {
+    if (!item || !item.sectionId) {
+      const error = new Error(`sectionOrders[${index}].sectionId is required`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (typeof item.order !== "number") {
+      const error = new Error(`sectionOrders[${index}].order must be a number`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return {
+      updateOne: {
+        filter: { _id: item.sectionId },
+        update: { $set: { order: item.order } },
+      },
+    };
+  });
+
+  await HomepageSection.bulkWrite(bulkOperations);
+  await invalidateHomepageCache();
+
+  const sections = await HomepageSection.find({})
+    .sort({ order: 1, createdAt: 1 })
+    .lean();
+
+  res.status(200).json({
+    success: true,
+    sections,
+  });
+});
+
 const getHomepage = asyncHandler(async (req, res) => {
   const cachedSections = await getHomepageCache();
 
@@ -103,7 +196,11 @@ const getHomepage = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  listHomepageSections,
+  getHomepageSectionById,
   createHomepageSection,
   updateHomepageSection,
+  deleteHomepageSection,
+  reorderHomepageSections,
   getHomepage,
 };
