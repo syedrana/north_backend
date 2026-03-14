@@ -35,6 +35,15 @@ function ensureString(value, fieldName) {
   return value.trim();
 }
 
+function ensureOptionalString(value, fieldName) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  assert(typeof value === "string", `${fieldName} must be a string`);
+  return value.trim();
+}
+
 function validateHeroBannerSettings(settings) {
   const input = ensureObject(settings, "settings");
   assert(Array.isArray(input.banners), "settings.banners must be an array");
@@ -43,11 +52,11 @@ function validateHeroBannerSettings(settings) {
     const current = ensureObject(banner, `settings.banners[${index}]`);
 
     return {
-      image: ensureString(current.image, `settings.banners[${index}].image`),
-      title: ensureString(current.title, `settings.banners[${index}].title`),
-      subtitle: ensureString(current.subtitle, `settings.banners[${index}].subtitle`),
-      buttonText: ensureString(current.buttonText, `settings.banners[${index}].buttonText`),
-      link: ensureString(current.link, `settings.banners[${index}].link`),
+      image: ensureOptionalString(current.image, `settings.banners[${index}].image`),
+      title: ensureOptionalString(current.title, `settings.banners[${index}].title`),
+      subtitle: ensureOptionalString(current.subtitle, `settings.banners[${index}].subtitle`),
+      buttonText: ensureOptionalString(current.buttonText, `settings.banners[${index}].buttonText`),
+      link: ensureOptionalString(current.link, `settings.banners[${index}].link`),
     };
   });
 
@@ -94,8 +103,8 @@ function validateCampaignBannerSettings(settings) {
       const current = ensureObject(campaign, `settings.campaigns[${index}]`);
 
       return {
-        image: ensureString(current.image, `settings.campaigns[${index}].image`),
-        link: ensureString(current.link, `settings.campaigns[${index}].link`),
+        image: ensureOptionalString(current.image, `settings.campaigns[${index}].image`),
+        link: ensureOptionalString(current.link, `settings.campaigns[${index}].link`),
       };
     }),
   };
