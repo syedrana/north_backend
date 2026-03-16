@@ -1,7 +1,10 @@
 const Redis = require("ioredis");
 
 const redis = new Redis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: 2,
+  maxRetriesPerRequest: null,
+  retryStrategy(times) {
+    return Math.min(times * 50, 2000);
+  },
   enableReadyCheck: true,
 });
 
