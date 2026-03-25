@@ -4,6 +4,7 @@ const {
   resolveCategoryGrid,
   resolveProductGrid,
   resolveCampaignBanner,
+  resolveFlashSale,
 } = require("./homepageSectionResolvers");
 
 const sectionResolvers = {
@@ -11,6 +12,7 @@ const sectionResolvers = {
   category_grid: resolveCategoryGrid,
   product_grid: resolveProductGrid,
   campaign_banner: resolveCampaignBanner,
+  flash_sale: resolveFlashSale,
 };
 
 const resolveSectionData = async (section) => {

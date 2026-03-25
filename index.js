@@ -23,6 +23,7 @@ const searchRoutes = require("./routes/searchRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
 const homepageRoutes = require("./routes/homepageRoutes");
 const recentlyViewedRoutes = require("./routes/recentlyViewedRoutes");
+const flashSaleRoutes = require("./routes/flashSaleRoutes");
 
 const app =express();
 
@@ -54,6 +55,7 @@ app.use("/searchanalytics/", searchRoutes);
 app.use("/wishlist/", wishlistRoutes);
 app.use("/homepage", homepageRoutes);
 app.use("/recentlyviewed", recentlyViewedRoutes);
+app.use("/flash-sales", flashSaleRoutes);
 
 
 // ✅ Root Route (for Render test)----------------------------------------------------------

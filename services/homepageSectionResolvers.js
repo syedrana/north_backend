@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Category = require("../models/category");
 const Product = require("../models/product");
 const Order = require("../models/order");
+const { getActiveFlashSale, getFlashSaleById } = require("./flashSaleService");
 
 const DEFAULT_PRODUCT_LIMIT = 8;
 const DEFAULT_CATEGORY_LIMIT = 8;
@@ -207,9 +208,35 @@ const resolveCampaignBanner = async (settings = {}) => {
   };
 };
 
+const resolveFlashSale = async (settings = {}) => {
+  const mode = settings.mode === "manual" ? "manual" : "active";
+  const limit = parsePositiveInteger(settings.limit, DEFAULT_PRODUCT_LIMIT);
+
+  const sale =
+    mode === "manual" && settings.flashSaleId
+      ? await getFlashSaleById(settings.flashSaleId)
+      : await getActiveFlashSale();
+
+  if (!sale) {
+    return {
+      mode,
+      flashSale: null,
+    };
+  }
+
+  return {
+    mode,
+    flashSale: {
+      ...sale,
+      products: Array.isArray(sale.products) ? sale.products.slice(0, limit) : [],
+    },
+  };
+};
+
 module.exports = {
   resolveHeroBanner,
   resolveCategoryGrid,
   resolveProductGrid,
   resolveCampaignBanner,
+  resolveFlashSale,
 };
