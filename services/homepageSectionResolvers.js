@@ -3,10 +3,10 @@ const Category = require("../models/category");
 const Product = require("../models/product");
 const Order = require("../models/order");
 const { getActiveFlashSale, getFlashSaleById } = require("./flashSaleService");
+const { getTrendingProducts } = require("./trendingProductsService");
 
 const DEFAULT_PRODUCT_LIMIT = 8;
 const DEFAULT_CATEGORY_LIMIT = 8;
-const TRENDING_WINDOW_DAYS = 30;
 
 const parsePositiveInteger = (value, fallback) => {
   const parsed = Number(value);
@@ -109,19 +109,17 @@ const getProductSource = async (source, settings, limit) => {
     });
   }
 
-  if (source === "best_seller" || source === "trending") {
-    const matchStage = {
-      "items.0": { $exists: true },
-    };
+  if (source === "trending") {
+    return getTrendingProducts({
+      limit,
+      categoryId: settings.categoryId,
+    });
+  }
 
-    if (source === "trending") {
-      const threshold = new Date();
-      threshold.setDate(threshold.getDate() - TRENDING_WINDOW_DAYS);
-      matchStage.createdAt = { $gte: threshold };
-    }
+  if (source === "best_seller") {
 
     const topProducts = await Order.aggregate([
-      { $match: matchStage },
+      { $match: { "items.0": { $exists: true } } },
       { $unwind: "$items" },
       {
         $group: {

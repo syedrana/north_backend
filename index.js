@@ -24,6 +24,7 @@ const wishlistRoutes = require("./routes/wishlistRoutes");
 const homepageRoutes = require("./routes/homepageRoutes");
 const recentlyViewedRoutes = require("./routes/recentlyViewedRoutes");
 const flashSaleRoutes = require("./routes/flashSaleRoutes");
+const trendingProductsRoutes = require("./routes/trendingProductsRoutes");
 
 const app =express();
 
@@ -56,7 +57,7 @@ app.use("/wishlist/", wishlistRoutes);
 app.use("/homepage", homepageRoutes);
 app.use("/recentlyviewed", recentlyViewedRoutes);
 app.use("/flash-sales", flashSaleRoutes);
-
+app.use("/trending-products", trendingProductsRoutes);
 
 // ✅ Root Route (for Render test)----------------------------------------------------------
 app.get("/", (req, res) => {
