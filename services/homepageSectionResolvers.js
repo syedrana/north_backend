@@ -4,6 +4,7 @@ const Product = require("../models/product");
 const Order = require("../models/order");
 const { getActiveFlashSale, getFlashSaleById } = require("./flashSaleService");
 const { getTrendingProducts } = require("./trendingProductsService");
+const { getRecentlyViewedProducts } = require("./recentlyViewedService");
 
 const DEFAULT_PRODUCT_LIMIT = 8;
 const DEFAULT_CATEGORY_LIMIT = 8;
@@ -231,10 +232,29 @@ const resolveFlashSale = async (settings = {}) => {
   };
 };
 
+const resolveRecentlyViewed = async (
+  settings = {},
+  { userId = null, guestId = null } = {}
+) => {
+  const limit = parsePositiveInteger(settings.limit, DEFAULT_PRODUCT_LIMIT);
+  const recentlyViewed = await getRecentlyViewedProducts({ userId, guestId });
+
+  return {
+    products: recentlyViewed
+      .filter((item) => item.productId)
+      .slice(0, limit)
+      .map((item) => ({
+        viewedAt: item.viewedAt,
+        ...normalizeProduct(item.productId),
+      })),
+  };
+};
+
 module.exports = {
   resolveHeroBanner,
   resolveCategoryGrid,
   resolveProductGrid,
   resolveCampaignBanner,
   resolveFlashSale,
+  resolveRecentlyViewed,
 };

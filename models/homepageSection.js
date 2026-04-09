@@ -16,7 +16,7 @@ const homepageSectionSchema = new mongoose.Schema(
         "product_grid",
         "campaign_banner",
         "flash_sale",
-        "blog_section",
+        "recently_viewed",
       ],
     },
     order: {

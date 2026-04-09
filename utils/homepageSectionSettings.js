@@ -4,6 +4,7 @@ const SUPPORTED_SECTION_TYPES = [
   "product_grid",
   "campaign_banner",
   "flash_sale",
+  "recently_viewed",
 ];
 
 const PRODUCT_GRID_SOURCES = [
@@ -114,6 +115,17 @@ function validateFlashSaleSettings(settings) {
   return validated;
 }
 
+function validateRecentlyViewedSettings(settings) {
+  const input = ensureObject(settings, "settings");
+
+  const validated = {};
+
+  if (input.limit !== undefined) {
+    validated.limit = ensureNumber(input.limit, "settings.limit");
+  }
+
+  return validated;
+}
 
 function validateCampaignBannerSettings(settings) {
   const input = ensureObject(settings, "settings");
@@ -149,6 +161,8 @@ function validateSectionSettings(type, settings = {}) {
       return validateCampaignBannerSettings(settings);
     case "flash_sale":
       return validateFlashSaleSettings(settings);
+    case "recently_viewed":
+      return validateRecentlyViewedSettings(settings);
     default:
       throw new Error(`Unsupported section type: ${sectionType}`);
   }

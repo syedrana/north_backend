@@ -5,6 +5,7 @@ const {
   resolveProductGrid,
   resolveCampaignBanner,
   resolveFlashSale,
+  resolveRecentlyViewed,
 } = require("./homepageSectionResolvers");
 
 const sectionResolvers = {
@@ -14,9 +15,10 @@ const sectionResolvers = {
   trending: resolveProductGrid,
   campaign_banner: resolveCampaignBanner,
   flash_sale: resolveFlashSale,
+  recently_viewed: resolveRecentlyViewed,
 };
 
-const resolveSectionData = async (section) => {
+const resolveSectionData = async (section,  context = {}) => {
   const resolver = sectionResolvers[section.type];
   const settings =
     section.type === "trending"
@@ -30,7 +32,7 @@ const resolveSectionData = async (section) => {
     };
   }
 
-  const data = await resolver(settings);
+  const data = await resolver(settings, context);
 
   return {
     ...section,
@@ -38,7 +40,7 @@ const resolveSectionData = async (section) => {
   };
 };
 
-const buildHomepageSections = async () => {
+const buildHomepageSections = async (context = {}) => {
   const sections = await HomepageSection.find({ status: "active" })
     .sort({ order: 1, createdAt: 1 })
     .lean();
@@ -46,7 +48,7 @@ const buildHomepageSections = async () => {
   const structuredSections = [];
 
   for (const section of sections) {
-    const structuredSection = await resolveSectionData(section);
+    const structuredSection = await resolveSectionData(section, context);
     structuredSections.push(structuredSection);
   }
 

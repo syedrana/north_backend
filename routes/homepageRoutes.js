@@ -10,10 +10,11 @@ const {
 } = require("../controllers/homepageController");
 const upload = require("../middleware/upload");
 const multerErrorHandler = require("../middleware/uploadErrorHandler");
+const optionalAuth = require("../middleware/optionalAuth");
 
 const router = express.Router();
 
-router.get("/", getHomepage);
+router.get("/", optionalAuth, getHomepage);
 router.get("/admin/sections", listHomepageSections);
 router.get("/admin/sections/:sectionId", getHomepageSectionById);
 router.post(
