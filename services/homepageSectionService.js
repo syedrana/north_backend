@@ -11,12 +11,17 @@ const sectionResolvers = {
   hero_banner: resolveHeroBanner,
   category_grid: resolveCategoryGrid,
   product_grid: resolveProductGrid,
+  trending: resolveProductGrid,
   campaign_banner: resolveCampaignBanner,
   flash_sale: resolveFlashSale,
 };
 
 const resolveSectionData = async (section) => {
   const resolver = sectionResolvers[section.type];
+  const settings =
+    section.type === "trending"
+      ? { ...(section.settings || {}), source: "trending" }
+      : section.settings || {};
 
   if (!resolver) {
     return {
@@ -25,7 +30,7 @@ const resolveSectionData = async (section) => {
     };
   }
 
-  const data = await resolver(section.settings || {});
+  const data = await resolver(settings);
 
   return {
     ...section,

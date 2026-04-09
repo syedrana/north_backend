@@ -368,6 +368,23 @@ const asyncHandler = (handler) => (req, res, next) => {
   Promise.resolve(handler(req, res, next)).catch(next);
 };
 
+const normalizeSectionDefinition = (type, settings = {}) => {
+  if (type === "trending") {
+    return {
+      normalizedType: "product_grid",
+      normalizedSettings: {
+        ...(settings || {}),
+        source: "trending",
+      },
+    };
+  }
+
+  return {
+    normalizedType: type,
+    normalizedSettings: settings || {},
+  };
+};
+
 const getValidatedSettings = (type, settings = {}) => {
   try {
     return validateSectionSettings(type, settings);
@@ -473,18 +490,26 @@ const createHomepageSection = asyncHandler(async (req, res) => {
     });
   }
 
-  const settingsWithUploads = await applyUploadedBannerImages(
+  const { normalizedType, normalizedSettings } = normalizeSectionDefinition(
     type,
-    parsedSettings,
+    parsedSettings
+  );
+
+  const settingsWithUploads = await applyUploadedBannerImages(
+    normalizedType,
+    normalizedSettings,
     req.files,
     req.body
   );
 
-  const validatedSettings = getValidatedSettings(type, settingsWithUploads);
+  const validatedSettings = getValidatedSettings(
+    normalizedType,
+    settingsWithUploads
+  );
 
   const section = new HomepageSection({
     title,
-    type,
+    type: normalizedType,
     order,
     status,
     settings: validatedSettings,
@@ -505,6 +530,8 @@ const createHomepageSection = asyncHandler(async (req, res) => {
 const updateHomepageSection = asyncHandler(async (req, res) => {
   const { sectionId } = req.params;
   const { title, type, order, status } = req.body;
+  const { normalizedType: normalizedRequestedType } =
+    normalizeSectionDefinition(type);
 
   const hasUploadFiles = Array.isArray(req.files) && req.files.length > 0;
 
@@ -522,12 +549,21 @@ const updateHomepageSection = asyncHandler(async (req, res) => {
     });
   }
 
+  if (section.type === "trending") {
+    section.type = "product_grid";
+    section.settings = {
+      ...(section.settings || {}),
+      source: "trending",
+    };
+  }
+
   if (title !== undefined) section.title = title;
-  if (type !== undefined) section.type = type;
+  if (type !== undefined) section.type = normalizedRequestedType;
   if (order !== undefined) section.order = order;
   if (status !== undefined) section.status = status;
 
-  const sectionType = type !== undefined ? type : section.type;
+  const sectionType =
+    type !== undefined ? normalizedRequestedType : section.type;
 
   if (parsedSettings !== undefined || hasUploadFiles) {
     const baseSettings =
@@ -548,14 +584,24 @@ const updateHomepageSection = asyncHandler(async (req, res) => {
       });
     }
 
-    const settingsWithUploads = await applyUploadedBannerImages(
+    const { normalizedType, normalizedSettings } = normalizeSectionDefinition(
       sectionType,
-      baseSettings,
+      baseSettings
+    );
+
+    section.type = normalizedType;
+
+    const settingsWithUploads = await applyUploadedBannerImages(
+      normalizedType,
+      normalizedSettings,
       req.files,
       req.body
     );
 
-    section.settings = getValidatedSettings(sectionType, settingsWithUploads);
+    section.settings = getValidatedSettings(
+      normalizedType,
+      settingsWithUploads
+    );
   }
 
   await section.save();
@@ -668,4 +714,5 @@ module.exports = {
   deleteHomepageSection,
   reorderHomepageSections,
   getHomepage,
+  
 };
