@@ -222,14 +222,14 @@ const getSingleProduct = async (req, res, next) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const userId = req.user?._id || null;
-    const guestId = req.headers["x-guest-id"] || null;
+    // const userId = req.user?._id || null;
+    // const guestId = req.headers["x-guest-id"] || null;
 
-    await trackProductView({
-      userId,
-      guestId,
-      productId: product._id,
-    });
+    // await trackProductView({
+    //   userId,
+    //   guestId,
+    //   productId: product._id,
+    // });
 
     res.status(200).json({
       success: true,
