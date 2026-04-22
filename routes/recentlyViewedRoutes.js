@@ -5,7 +5,7 @@ const { getRecentlyViewed, trackRecentlyViewed } = require("../controllers/recen
 
 const router = express.Router();
 
-router.post("/track-view", securapi, trackRecentlyViewed);
+router.post("/track-view", securapi, optionalAuth, trackRecentlyViewed);
 router.get("/", securapi, optionalAuth, getRecentlyViewed);
 
 module.exports = router;
