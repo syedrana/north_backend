@@ -1,28 +1,30 @@
-const redis = require("../config/redis");
+const HOMEPAGE_CACHE_TTL_MS = 10 * 60 * 1000;
 
-const HOMEPAGE_CACHE_KEY = "homepage_cache";
-const HOMEPAGE_CACHE_TTL_SECONDS = 10 * 60;
+let cacheValue = null;
+let cacheExpiresAt = 0;
 
 const getHomepageCache = async () => {
-  const cachedValue = await redis.get(HOMEPAGE_CACHE_KEY);
+  const now = Date.now();
 
-  if (!cachedValue) {
+  if (!cacheValue || now >= cacheExpiresAt) {
+    cacheValue = null;
+    cacheExpiresAt = 0;
     return null;
   }
 
-  return JSON.parse(cachedValue);
+  return cacheValue;
 };
 
 const setHomepageCache = async (data) => {
-  const serialized = JSON.stringify(data);
-
-  await redis.set(HOMEPAGE_CACHE_KEY, serialized, "EX", HOMEPAGE_CACHE_TTL_SECONDS);
+  cacheValue = data;
+  cacheExpiresAt = Date.now() + HOMEPAGE_CACHE_TTL_MS;
 
   return data;
 };
 
 const invalidateHomepageCache = async () => {
-  await redis.del(HOMEPAGE_CACHE_KEY);
+  cacheValue = null;
+  cacheExpiresAt = 0;
 };
 
 module.exports = {

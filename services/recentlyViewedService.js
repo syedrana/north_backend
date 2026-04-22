@@ -48,8 +48,14 @@ const getRecentlyViewedProducts = async ({ userId = null, guestId = null }) => {
     .limit(MAX_RECENTLY_VIEWED_ITEMS)
     .populate({
       path: "productId",
-      select: "name slug brand categoryId isActive isPublished",
+      select: "name slug brand categoryId description attributes sizeOptions tags isActive isPublished",
       match: { isActive: true, isPublished: true },
+      populate: {
+        path: "variants",
+        select: "sku price discountPrice images stock size color isDefault isActive",
+        match: { isActive: true },
+        options: { sort: { isDefault: -1, createdAt: 1 } },
+      },
     })
     .lean();
 };
