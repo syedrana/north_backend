@@ -2,6 +2,9 @@ const Product = require("../models/product");
 const ProductVariant = require("../models/productVariant");
 const slugify = require("slugify");
 const { trackProductView } = require("../services/recentlyViewedService");
+const Address = require("../models/address");
+const { DEFAULT_DISTRICT } = require("../config/shipping");
+const calculateShipping = require("../utils/calculateShipping");
 // const uploadToCloudinary = require("../helpers/uploadToCloudinaryHelper");
 // const cloudinary = require("../config/cloudinary");
 
@@ -222,19 +225,87 @@ const getSingleProduct = async (req, res, next) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // const userId = req.user?._id || null;
-    // const guestId = req.headers["x-guest-id"] || null;
+    /* =========================
+       🔥 AUTO CONTEXT DETECTION
+    ========================= */
 
-    // await trackProductView({
-    //   userId,
-    //   guestId,
-    //   productId: product._id,
-    // });
+    const userId = req.user?._id || null;
+
+    // 👉 default variant
+    const selectedVariant = product.variants[0];
+
+    const quantity = 1;
+
+    const unitPrice = Number(
+      selectedVariant?.discountPrice || selectedVariant?.price || 0
+    );
+
+    const subtotal = unitPrice * quantity;
+
+    /* =========================
+       🔥 ADDRESS AUTO LOAD
+    ========================= */
+
+    let address = null;
+
+    if (userId) {
+      address = await Address.findOne({
+        userId,
+        isDefault: true,
+      }).lean();
+    }
+
+    // 👉 fallback address (guest বা no address)
+    if (!address) {
+      address = address || { district: DEFAULT_DISTRICT };
+    }
+
+    /* =========================
+       🔥 SHIPPING CALCULATION
+    ========================= */
+
+    let deliveryEstimate = null;
+
+    try {
+      const shippingResult = await calculateShipping({
+        items: [
+          {
+            quantity,
+            variantSnapshot: {
+              shipping: selectedVariant?.shipping,
+            },
+          },
+        ],
+        subtotal,
+        address,
+      });
+
+      deliveryEstimate = {
+        ...shippingResult,
+        variantId: selectedVariant?._id,
+        quantity,
+        subtotal,
+      };
+    } catch (e) {
+      deliveryEstimate = {
+        total: 0,
+        breakdown: {
+          reason: "estimate-failed",
+          message: e.message,
+        },
+      };
+    }
+
+    /* =========================
+       🔥 RESPONSE
+    ========================= */
 
     res.status(200).json({
       success: true,
       product,
+      deliveryEstimate,
     });
+
   } catch (error) {
     next(error);
   }

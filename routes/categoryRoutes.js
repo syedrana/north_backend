@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
+const upload = require("../middleware/upload");
+
 const {
   createCategory,
   getAllCategories,
@@ -11,8 +13,8 @@ const {
 } = require("../controllers/categoryController");
 
 // Admin (protect middleware পরে বসাবে)
-router.post("/create", createCategory);
-router.put("/:id", updateCategory);
+router.post("/create", upload.single("image"), createCategory);
+router.put("/:id", upload.single("image"), updateCategory);
 router.delete("/:id", deleteCategory);
 
 // Public / Admin

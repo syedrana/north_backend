@@ -1,4 +1,6 @@
 const Category = require("../models/category");
+const uploadToCloudinary = require("../helpers/uploadToCloudinaryHelper");
+const deleteFromCloudinary = require("../helpers/deleteFromCloudinaryHelper");
 
 exports.createCategory = async (req, res) => {
   try {
@@ -38,9 +40,20 @@ exports.createCategory = async (req, res) => {
       }
     }
 
+    let imageData = {};
+
+    if (req.file?.buffer) {
+      const uploaded = await uploadToCloudinary(req.file.buffer);
+      imageData = {
+        url: result.secure_url,
+        publicId: result.public_id,
+      };
+    }
+
     const category = await Category.create({
       name,
       parentId: parentId || null,
+      image: imageData,
     });
 
     res.status(201).json({
@@ -66,7 +79,7 @@ exports.getAllCategories = async (req, res) => {
 
     const categories = await Category.find(filter)
       .sort({ name: 1 })
-      .limit(20); // 🔥 IMPORTANT: limit for performance
+      .limit(20);
 
     res.json({
       success: true,
@@ -76,7 +89,6 @@ exports.getAllCategories = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 exports.getSingleCategory = async (req, res) => {
   try {
@@ -97,13 +109,12 @@ exports.getSingleCategory = async (req, res) => {
 
 const buildCategoryTree = (categories, parentId = null) => {
   return categories
-    .filter(cat =>
-      String(cat.parentId) === String(parentId)
-    )
-    .map(cat => ({
+    .filter((cat) => String(cat.parentId) === String(parentId))
+    .map((cat) => ({
       _id: cat._id,
       name: cat.name,
       slug: cat.slug,
+      image: cat.image,
       children: buildCategoryTree(categories, cat._id),
     }));
 };
@@ -139,6 +150,16 @@ exports.updateCategory = async (req, res) => {
     if (name) category.name = name;
     if (parentId !== undefined) category.parentId = parentId;
     if (isActive !== undefined) category.isActive = isActive;
+
+    if (req.file?.buffer) {
+      const oldImage = category.image;
+      const uploaded = await uploadToCloudinary(req.file.buffer);
+      category.image = uploaded.secure_url;
+
+      if (oldImage && oldImage !== category.image) {
+        await deleteFromCloudinary(oldImage);
+      }
+    }
 
     await category.save();
 
