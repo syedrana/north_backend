@@ -43,7 +43,7 @@ exports.createCategory = async (req, res) => {
     let imageData = {};
 
     if (req.file?.buffer) {
-      const uploaded = await uploadToCloudinary(req.file.buffer);
+      const result = await uploadToCloudinary(req.file.buffer);
       imageData = {
         url: result.secure_url,
         publicId: result.public_id,
@@ -154,10 +154,13 @@ exports.updateCategory = async (req, res) => {
     if (req.file?.buffer) {
       const oldImage = category.image;
       const uploaded = await uploadToCloudinary(req.file.buffer);
-      category.image = uploaded.secure_url;
+      category.image = {
+        url: uploaded.secure_url,
+        publicId: uploaded.public_id,
+      };
 
-      if (oldImage && oldImage !== category.image) {
-        await deleteFromCloudinary(oldImage);
+      if (oldImage?.publicId) {
+        await deleteFromCloudinary(oldImage.publicId);
       }
     }
 
