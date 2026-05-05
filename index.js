@@ -45,7 +45,7 @@ app.use("/uploads", express.static("uploads"));
 app.use("/admin", authRoutes);
 app.use("/products", productRoutes);
 app.use("/productsvariant", productVariantRoutes);
-app.use("/categorys", categoryRoutes);
+app.use("/categories", categoryRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
 app.use("/customer", customerRoutes);
