@@ -1,3 +1,70 @@
+// const express = require("express");
+// const router = express.Router();
+
+// const upload = require("../middleware/upload");
+
+// const {
+//   createCategory,
+//   getAllCategories,
+//   getCategoryTree,
+//   getSingleCategory,
+//   updateCategory,
+//   deleteCategory,
+//   reorderCategories,
+//   trackCategoryUsage,
+//   getCategoryWithCounts,
+// } = require("../controllers/categoryController");
+
+// // =======================
+// // ADMIN ROUTES
+// // =======================
+
+// // Create
+// router.post("/create", upload.single("image"), createCategory);
+
+// // Update
+// router.put("/:id", upload.single("image"), updateCategory);
+
+// // Delete (soft delete)
+// router.delete("/:id", deleteCategory);
+
+// // Reorder (Drag & Drop)
+// router.put("/reorder", reorderCategories);
+
+// // Analytics (track usage)
+// router.post("/track/:id", trackCategoryUsage);
+
+
+// // =======================
+// // PUBLIC / COMMON ROUTES
+// // =======================
+
+// // Tree (⚠️ আগে দিতে হবে)
+// router.get("/tree", getCategoryTree);
+
+// // With product counts
+// router.get("/with-counts", getCategoryWithCounts);
+
+// // Get all (pagination + search)
+// router.get("/", getAllCategories);
+
+// // Get single (⚠️ সবশেষে রাখতে হবে)
+// router.get("/:id", getSingleCategory);
+
+
+// module.exports = router;
+
+
+
+
+
+
+
+
+
+
+
+
 const express = require("express");
 const router = express.Router();
 
@@ -16,40 +83,36 @@ const {
 } = require("../controllers/categoryController");
 
 // =======================
-// ADMIN ROUTES
+// ADMIN
 // =======================
 
-// Create
-router.post("/create", upload.single("image"), createCategory);
-
-// Update
-router.put("/:id", upload.single("image"), updateCategory);
-
-// Delete (soft delete)
-router.delete("/:id", deleteCategory);
-
-// Reorder (Drag & Drop)
+// 🔥 reorder আগে রাখতে হবে
 router.put("/reorder", reorderCategories);
 
-// Analytics (track usage)
+// analytics
 router.post("/track/:id", trackCategoryUsage);
 
+// create
+router.post("/create", upload.single("image"), createCategory);
+
+// update
+router.put("/:id", upload.single("image"), updateCategory);
+
+// delete
+router.delete("/:id", deleteCategory);
 
 // =======================
-// PUBLIC / COMMON ROUTES
+// PUBLIC
 // =======================
 
-// Tree (⚠️ আগে দিতে হবে)
+// ⚠️ এগুলোও আগে
 router.get("/tree", getCategoryTree);
-
-// With product counts
 router.get("/with-counts", getCategoryWithCounts);
 
-// Get all (pagination + search)
+// all
 router.get("/", getAllCategories);
 
-// Get single (⚠️ সবশেষে রাখতে হবে)
+// ⚠️ সবশেষে id
 router.get("/:id", getSingleCategory);
-
 
 module.exports = router;
