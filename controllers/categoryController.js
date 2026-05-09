@@ -265,9 +265,10 @@
 
 const mongoose = require("mongoose");
 const Category = require("../models/category");
-const Product = require("../models/Product");
+const Product = require("../models/product");
 const uploadToCloudinary = require("../helpers/uploadToCloudinaryHelper");
 const deleteFromCloudinary = require("../helpers/deleteFromCloudinaryHelper");
+const { invalidateHomepageCache } = require("../services/homepageCacheService");
 
 // =======================
 // NORMALIZE
@@ -346,6 +347,7 @@ exports.createCategory = async (req, res) => {
     );
 
     await session.commitTransaction();
+    await invalidateHomepageCache();
 
     res.status(201).json({
       success: true,
@@ -452,6 +454,7 @@ exports.updateCategory = async (req, res) => {
     }
 
     await session.commitTransaction();
+    await invalidateHomepageCache();
 
     // ✅ delete old image AFTER commit
     if (oldImageId) {
@@ -483,6 +486,7 @@ exports.deleteCategory = async (req, res) => {
       },
       { isActive: false }
     );
+    await invalidateHomepageCache();
 
     res.json({
       success: true,
@@ -554,6 +558,7 @@ exports.reorderCategories = async (req, res) => {
     }));
 
     await Category.bulkWrite(bulk);
+    await invalidateHomepageCache();
 
     res.json({ success: true });
   } catch (err) {

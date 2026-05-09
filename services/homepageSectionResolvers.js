@@ -170,17 +170,26 @@ const resolveHeroBanner = async (settings = {}) => {
   };
 };
 
+const normalizeCategory = (category) => ({
+  ...category,
+  image: {
+    url: category?.image?.url || "",
+    publicId: category?.image?.publicId || "",
+  },
+  imageUrl: category?.image?.url || "",
+});
+
 const resolveCategoryGrid = async (settings = {}) => {
   const limit = parsePositiveInteger(settings.limit, DEFAULT_CATEGORY_LIMIT);
 
   const categories = await Category.find({ isActive: true })
     .sort({ createdAt: -1 })
     .limit(limit)
-    .select("name slug parentId")
+    .select("name slug parentId image")
     .lean();
 
   return {
-    categories,
+    categories: categories.map(normalizeCategory),
   };
 };
 
