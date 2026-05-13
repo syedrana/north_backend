@@ -14,6 +14,7 @@ const homepageSectionSchema = new mongoose.Schema(
         "hero_banner",
         "category_grid",
         "product_grid",
+        "trending",
         "campaign_banner",
         "flash_sale",
         "recently_viewed",

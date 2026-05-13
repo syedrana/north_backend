@@ -18,7 +18,7 @@ const asyncHandler = (handler) => (req, res, next) => {
 const normalizeSectionDefinition = (type, settings = {}) => {
   if (type === "trending") {
     return {
-      normalizedType: "product_grid",
+      normalizedType: "trending",
       normalizedSettings: {
         ...(settings || {}),
         source: "trending",
@@ -196,13 +196,13 @@ const updateHomepageSection = asyncHandler(async (req, res) => {
     });
   }
 
-  if (section.type === "trending") {
-    section.type = "product_grid";
-    section.settings = {
-      ...(section.settings || {}),
-      source: "trending",
-    };
-  }
+  // if (section.type === "trending") {
+  //   section.type = "product_grid";
+  //   section.settings = {
+  //     ...(section.settings || {}),
+  //     source: "trending",
+  //   };
+  // }
 
   if (title !== undefined) section.title = title;
   if (type !== undefined) section.type = normalizedRequestedType;

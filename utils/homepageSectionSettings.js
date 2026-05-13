@@ -2,6 +2,7 @@ const SUPPORTED_SECTION_TYPES = [
   "hero_banner",
   "category_grid",
   "product_grid",
+  "trending",
   "campaign_banner",
   "flash_sale",
   "recently_viewed",
@@ -157,6 +158,11 @@ function validateSectionSettings(type, settings = {}) {
       return validateCategoryGridSettings(settings);
     case "product_grid":
       return validateProductGridSettings(settings);
+    case "trending":
+      return validateProductGridSettings({
+        ...(settings || {}),
+        source: "trending",
+      });
     case "campaign_banner":
       return validateCampaignBannerSettings(settings);
     case "flash_sale":
